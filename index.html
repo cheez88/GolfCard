@@ -1,0 +1,2934 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16301F">
+<title>Golf Card — NSW</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --turf:#16301F;
+  --rough:#22452E;
+  --fairway:#3B7A4E;
+  --sand:#E8DCC0;
+  --paper:#FAF8F2;
+  --card:#FFFFFF;
+  --line:#D9D2BE;
+  --line-soft:#EAE4D4;
+  --flag:#B23A24;
+  --ink:#1B241D;
+  --muted:#6E7A6E;
+  --water:#DCE7EA;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--sans);
+  background:var(--paper);
+  color:var(--ink);
+  font-size:16px;
+  line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ---------- shell ---------- */
+header.top{
+  background:var(--turf);
+  color:var(--sand);
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  position:sticky;top:0;z-index:40;
+}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{
+  font-family:var(--serif);
+  font-size:21px;font-weight:600;margin:0;letter-spacing:.01em;
+}
+.brand .sub{font-size:12px;color:#9DB5A0;letter-spacing:.04em}
+nav.tabs{
+  display:flex;gap:2px;margin-top:12px;
+  background:rgba(0,0,0,.22);border-radius:9px;padding:3px;
+}
+nav.tabs button{
+  flex:1;padding:8px 4px;border-radius:7px;font-size:13px;font-weight:500;
+  color:#A9BFAB;transition:background .15s,color .15s;
+}
+nav.tabs button[aria-current="true"]{background:var(--sand);color:var(--turf);font-weight:600}
+nav.tabs button:focus-visible{outline:2px solid var(--sand);outline-offset:1px}
+
+main{padding:14px 14px 90px}
+.view{display:none}
+.view.active{display:block}
+
+h2.sec{
+  font-family:var(--serif);font-size:19px;font-weight:600;margin:0 0 2px;
+}
+.sec-note{font-size:13px;color:var(--muted);margin:0 0 12px}
+
+/* ---------- controls ---------- */
+.field{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
+.field:focus{outline:2px solid var(--fairway);outline-offset:-1px;border-color:var(--fairway)}
+.row{display:flex;gap:8px}
+.row>*{min-width:0}
+.btn{
+  padding:11px 14px;border-radius:9px;background:var(--fairway);color:#fff;
+  font-weight:600;font-size:15px;text-align:center;
+}
+.btn:active{background:var(--rough)}
+.btn.ghost{background:transparent;color:var(--rough);border:1px solid var(--line)}
+.btn.quiet{background:var(--line-soft);color:var(--rough)}
+.btn.danger{background:transparent;color:var(--flag);border:1px solid #E3C4BC}
+.btn:disabled{opacity:.45}
+.btn.full{width:100%;display:block}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  white-space:nowrap;padding:6px 11px;border-radius:999px;font-size:13px;
+  border:1px solid var(--line);background:var(--card);color:var(--muted);flex:0 0 auto;
+}
+.chip[aria-pressed="true"]{background:var(--rough);color:var(--sand);border-color:var(--rough)}
+
+/* ---------- list ---------- */
+ul.list{list-style:none;margin:10px 0 0;padding:0}
+ul.list li{
+  background:var(--card);border:1px solid var(--line-soft);border-radius:10px;
+  margin-bottom:7px;overflow:hidden;
+}
+.course-btn{display:flex;width:100%;text-align:left;padding:11px 12px;gap:10px;align-items:center}
+.course-btn .nm{font-weight:600;font-size:15px;line-height:1.25}
+.course-btn .mt{font-size:12.5px;color:var(--muted);margin-top:1px}
+.course-btn .grow{flex:1}
+.played{
+  flex:0 0 auto;font-size:11px;font-weight:700;color:var(--fairway);
+  border:1px solid #C3DCC9;background:#EFF6F0;border-radius:999px;padding:3px 8px;
+}
+.empty{
+  border:1px dashed var(--line);border-radius:10px;padding:22px 16px;text-align:center;
+  color:var(--muted);font-size:14px;background:#fff;
+}
+.empty strong{display:block;color:var(--ink);font-family:var(--serif);font-size:16px;margin-bottom:4px}
+
+/* ---------- map ---------- */
+.map-wrap{
+  position:relative;background:var(--water);border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;
+  z-index:0;isolation:isolate;
+}
+#lmap{width:100%;height:62vh;min-height:340px;background:var(--water)}
+.leaflet-container{font-family:var(--sans)}
+.leaflet-control-attribution{font-size:10px}
+.leaflet-bar a{color:var(--rough)}
+
+/* big tappable teardrop pins */
+.gpin{
+  width:30px;height:30px;display:block;background:none;border:none;
+}
+.gpin i{
+  display:block;width:26px;height:26px;margin:2px;
+  background:var(--fairway);border:2.5px solid #fff;
+  border-radius:50% 50% 50% 2px;transform:rotate(-45deg);
+  box-shadow:0 2px 5px rgba(22,48,31,.45);
+}
+.gpin i::after{
+  content:"";position:absolute;left:50%;top:50%;
+  width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:rgba(255,255,255,.9);
+}
+.gpin.seen i{background:var(--flag)}
+.gpin.sel i{background:var(--turf);width:32px;height:32px;margin:-1px;z-index:5}
+
+/* fallback schematic */
+#map{display:block;width:100%;height:58vh;min-height:320px;touch-action:none}
+.fallback-wrap{display:none;position:relative;touch-action:none}
+.fallback-wrap.on{display:block}
+.land{fill:#E7EBDF;stroke:#B9C3AC;stroke-width:.02}
+.pin{fill:var(--fairway);stroke:#fff;stroke-width:.012}
+.pin.seen{fill:var(--flag)}
+.pin.sel{fill:var(--turf)}
+.zoomers{position:absolute;right:9px;bottom:22px;display:flex;flex-direction:column;gap:5px;z-index:500}
+.zoomers button{
+  width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.95);
+  border:1px solid var(--line);font-size:19px;font-weight:600;color:var(--rough);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.15);
+}
+.map-legend{
+  position:absolute;left:9px;bottom:22px;background:rgba(255,255,255,.93);
+  border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--muted);z-index:500;
+}
+.map-legend span{display:flex;align-items:center;gap:5px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.callout{
+  position:absolute;left:9px;right:9px;top:9px;background:#fff;border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;display:none;box-shadow:0 4px 14px rgba(22,48,31,.18);z-index:600;
+}
+.callout.show{display:block}
+.callout .nm{font-weight:600;font-size:15px}
+.callout .mt{font-size:12.5px;color:var(--muted);margin:1px 0 8px}
+.pop .nm{font-weight:600;font-size:15px;line-height:1.25}
+.pop .mt{font-size:12.5px;color:var(--muted);margin:2px 0 9px}
+.pop .row{display:flex;gap:6px}
+.pop .btn{padding:8px 12px;font-size:14px}
+.leaflet-popup-content{margin:11px 12px;min-width:190px}
+.leaflet-popup-content-wrapper{border-radius:11px}
+
+/* ---------- sheet ---------- */
+.scrim{
+  position:fixed;inset:0;background:rgba(22,48,31,.42);z-index:2000;display:none;
+}
+.scrim.show{display:block}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:2001;background:var(--paper);
+  border-radius:16px 16px 0 0;max-height:92vh;overflow-y:auto;display:none;
+  padding:8px 16px calc(24px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling:touch;
+}
+.sheet.show{display:block}
+body.sheet-open{overflow:hidden}
+.grab{width:38px;height:4px;background:var(--line);border-radius:2px;margin:6px auto 12px}
+.sheet h3{font-family:var(--serif);font-size:19px;margin:0 0 2px;font-weight:600}
+.sheet .sub{font-size:13px;color:var(--muted);margin:0 0 14px}
+label.lbl{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+
+/* ---------- scorecard ---------- */
+.card-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;background:#fff}
+table.card{border-collapse:collapse;width:100%;font-size:13px}
+table.card th,table.card td{
+  border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);
+  padding:6px 4px;text-align:center;min-width:30px;
+}
+table.card th.side{
+  text-align:left;position:sticky;left:0;background:#fff;min-width:104px;
+  padding-left:9px;font-weight:600;z-index:2;border-right:1px solid var(--line);
+}
+table.card thead th{background:var(--turf);color:var(--sand);font-weight:600;font-size:12px}
+table.card thead th.side{background:var(--turf);color:var(--sand)}
+table.card tr.par td,table.card tr.par th{background:var(--sand);font-weight:600;color:var(--rough)}
+table.card td.tot{background:#F1F4EF;font-weight:700}
+.mark{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px}
+.mark.birdie{border:1.5px solid var(--flag);border-radius:50%;color:var(--flag);font-weight:600}
+.mark.eagle{border:1.5px solid var(--flag);border-radius:50%;color:var(--flag);font-weight:700;box-shadow:0 0 0 2.5px #fff,0 0 0 4px var(--flag)}
+.mark.bogey{border:1.5px solid var(--rough);color:var(--rough)}
+.mark.dbl{border:1.5px solid var(--rough);color:var(--rough);box-shadow:0 0 0 2.5px #fff,0 0 0 4px var(--rough)}
+
+/* ---------- hole entry ---------- */
+.hole-head{
+  background:var(--turf);color:var(--sand);border-radius:12px;padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.hole-head .h-no{font-family:var(--serif);font-size:30px;line-height:1;font-weight:600}
+.hole-head .h-lab{font-size:11.5px;color:#9DB5A0;letter-spacing:.06em}
+.par-pick{display:flex;gap:5px;align-items:center}
+.par-pick button{
+  width:34px;height:34px;border-radius:8px;border:1px solid rgba(232,220,192,.35);
+  color:var(--sand);font-weight:600;font-size:14px;
+}
+.par-pick button[aria-pressed="true"]{background:var(--sand);color:var(--turf);border-color:var(--sand)}
+.scorer{
+  background:#fff;border:1px solid var(--line-soft);border-radius:11px;
+  padding:10px 12px;margin-top:9px;display:flex;align-items:center;gap:10px;
+}
+.scorer .who{flex:1;min-width:0}
+.scorer .who .n{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scorer .who .r{font-size:12px;color:var(--muted)}
+.stepper{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.stepper button{
+  width:42px;height:42px;border-radius:11px;background:var(--line-soft);
+  color:var(--rough);font-size:21px;font-weight:600;display:flex;align-items:center;justify-content:center;
+}
+.stepper button:active{background:var(--sand)}
+.stepper .val{
+  min-width:34px;text-align:center;font-size:24px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.stepper .val.blank{color:var(--line)}
+.navrow{display:flex;gap:8px;margin-top:14px}
+.navrow .btn{flex:1}
+
+/* ---------- misc ---------- */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.stat{background:#fff;border:1px solid var(--line-soft);border-radius:10px;padding:11px 12px}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-family:var(--serif);font-size:23px;font-weight:600;line-height:1.2;margin-top:2px}
+.stat .v small{font-size:13px;font-family:var(--sans);color:var(--muted);font-weight:400}
+.round-li{padding:11px 12px}
+.round-li .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.round-li .c{font-weight:600;font-size:15px}
+.round-li .d{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.round-li .scores{font-size:13px;color:var(--rough);margin-top:5px;display:flex;flex-wrap:wrap;gap:4px 12px}
+.round-li .scores b{font-variant-numeric:tabular-nums}
+.vs{font-size:12px;color:var(--muted)}
+.vs.under{color:var(--flag);font-weight:600}
+.divider{height:1px;background:var(--line-soft);margin:16px 0}
+
+/* ---------- trend chart ---------- */
+.chart-card{
+  background:#fff;border:1px solid var(--line-soft);border-radius:11px;
+  padding:12px 10px 8px;margin-top:10px;
+}
+.chart-card svg{display:block;width:100%;height:auto;touch-action:manipulation}
+.axis{font-size:9px;fill:var(--muted);font-family:var(--sans)}
+.zeroline{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
+.gridline{stroke:var(--line-soft);stroke-width:1}
+.raw{fill:none;stroke:#C3CDBE;stroke-width:1.5;stroke-linejoin:round}
+.avg{fill:none;stroke:var(--fairway);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.pt{fill:var(--rough);stroke:#fff;stroke-width:1.5}
+.pt.best{fill:var(--flag)}
+.hit{fill:transparent;cursor:pointer}
+.readout{
+  font-size:13px;color:var(--ink);padding:8px 2px 2px;min-height:36px;line-height:1.35;
+}
+.readout .muted{color:var(--muted)}
+.trend-note{
+  font-size:13.5px;line-height:1.4;padding:9px 11px;border-radius:9px;
+  background:#F1F7F2;border:1px solid #CFE3D4;color:var(--rough);margin-top:10px;
+}
+.trend-note.worse{background:#FBF1EE;border-color:#EBD2CA;color:#8C2F1D}
+.trend-note b{font-weight:700}
+
+/* ---------- course map ---------- */
+#pickmap{width:100%;height:220px;border:1px solid var(--line);border-radius:11px;background:var(--water);z-index:0;isolation:isolate;margin-top:6px}
+#cmap{width:100%;height:52vh;min-height:300px;border:1px solid var(--line);border-radius:11px;background:var(--water);z-index:0;isolation:isolate}
+.holepin{background:none;border:none}
+.holepin span{
+  display:flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:50%;background:var(--turf);color:var(--sand);
+  font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);
+}
+.legend-grid{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px}
+.legend-grid span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.sw{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.15)}
+.holes-tbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+.holes-tbl th,.holes-tbl td{padding:6px 8px;border-bottom:1px solid var(--line-soft);text-align:right}
+.holes-tbl th:first-child,.holes-tbl td:first-child{text-align:left}
+.holes-tbl thead th{color:var(--muted);font-weight:600;font-size:12px}
+.loading{
+  display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted);
+  padding:12px 2px;
+}
+.spin{
+  width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--fairway);
+  border-radius:50%;animation:sp .8s linear infinite;flex:0 0 auto;
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.5s}}
+
+/* ---------- format picker ---------- */
+.fmt-opt{
+  display:block;width:100%;text-align:left;background:#fff;
+  border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:7px;
+}
+.fmt-opt[aria-pressed="true"]{border-color:var(--fairway);background:#F1F7F2;box-shadow:inset 0 0 0 1px var(--fairway)}
+.fmt-opt .ft{font-weight:600;font-size:15px}
+.fmt-opt .fd{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.fmt-tag{
+  display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;
+  background:var(--sand);color:var(--rough);border-radius:999px;padding:2px 8px;
+}
+.team-row{
+  background:var(--rough);color:var(--sand);border-radius:11px;
+  padding:11px 12px;margin-top:9px;display:flex;align-items:center;gap:10px;
+}
+.team-row .who{flex:1;min-width:0}
+.team-row .who .n{font-weight:600;font-size:15px}
+.team-row .who .r{font-size:12px;color:#A9BFAB}
+.team-row .stepper button{background:rgba(232,220,192,.2);color:var(--sand)}
+.team-row .stepper .val{color:var(--sand)}
+.team-line{
+  font-size:12.5px;color:var(--fairway);font-weight:600;
+  padding:2px 0 0 12px;margin-top:-4px;
+}
+table.card tr.team td,table.card tr.team th{background:#EEF4EF;font-weight:700;color:var(--rough)}
+
+/* ---------- side games ---------- */.side{
+  background:#fff;border:1px solid var(--line-soft);border-radius:11px;
+  padding:11px 12px;margin-top:10px;
+}
+.side .hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.side .hd b{font-size:14px}
+.side .hd span{font-size:11.5px;color:var(--muted)}
+.side .lrow{display:flex;align-items:center;gap:8px;margin-top:9px}
+.side .lrow .t{flex:0 0 92px;font-size:13px;color:var(--muted);line-height:1.2}
+.side .opts{display:flex;gap:5px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:2px}
+.side .opts::-webkit-scrollbar{display:none}
+.side .opts button{
+  flex:0 0 auto;white-space:nowrap;padding:7px 11px;border-radius:999px;font-size:13px;
+  border:1px solid var(--line);background:#fff;color:var(--muted);
+}
+.side .opts button[aria-pressed="true"]{background:var(--flag);border-color:var(--flag);color:#fff;font-weight:600}
+.side .opts button.ntp[aria-pressed="true"]{background:var(--fairway);border-color:var(--fairway)}
+.badge{
+  display:inline-block;font-size:11px;font-weight:700;border-radius:999px;
+  padding:2px 7px;margin-left:6px;
+}
+.badge.ld{background:#F6E3DE;color:var(--flag)}
+.badge.ntp{background:#E4F0E7;color:var(--fairway)}
+.sg-li{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:14px}
+.sg-li .h{flex:0 0 56px;font-size:12.5px;color:var(--muted)}
+.sg-li .w{font-weight:600}
+.foot{font-size:12px;color:var(--muted);text-align:center;padding:6px 10px 0;line-height:1.5}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:2100;
+  background:var(--turf);color:var(--sand);padding:10px 16px;border-radius:999px;
+  font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Golf Card</h1>
+    <span class="sub">New South Wales</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button data-view="map" aria-current="true">Map</button>
+    <button data-view="courses">Courses</button>
+    <button data-view="rounds">Rounds</button>
+    <button data-view="players">Players</button>
+    <button data-view="stats">Stats</button>
+  </nav>
+</header>
+
+<main>
+  <!-- MAP -->
+  <section class="view active" id="v-map">
+    <div class="chips" id="mapRegions"></div>
+
+    <div class="map-wrap" id="leafletWrap">
+      <div id="lmap"></div>
+      <div class="map-legend">
+        <span><i class="dot" style="background:#B23A24"></i> played</span>
+        <span style="margin-top:3px"><i class="dot" style="background:#3B7A4E"></i> not yet</span>
+      </div>
+      <div class="zoomers">
+        <button id="locBtn" aria-label="Find my location" style="font-size:15px">◎</button>
+        <button id="fitBtn" aria-label="Show all of NSW" style="font-size:13px">NSW</button>
+      </div>
+    </div>
+
+    <div class="map-wrap fallback-wrap" id="fallbackWrap">
+      <svg id="map" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Schematic map of New South Wales golf courses"></svg>
+      <div class="callout" id="callout">
+        <div class="nm" id="coNm"></div>
+        <div class="mt" id="coMt"></div>
+        <div class="row">
+          <button class="btn" style="flex:1" id="coPlay">Start a round</button>
+          <button class="btn ghost" id="coOpen">Details</button>
+        </div>
+      </div>
+      <div class="map-legend">
+        <span><i class="dot" style="background:#B23A24"></i> played</span>
+        <span style="margin-top:3px"><i class="dot" style="background:#3B7A4E"></i> not yet</span>
+      </div>
+      <div class="zoomers">
+        <button id="zIn" aria-label="Zoom in">+</button>
+        <button id="zOut" aria-label="Zoom out">−</button>
+        <button id="zReset" aria-label="Reset map" style="font-size:14px">NSW</button>
+      </div>
+    </div>
+
+    <p class="sec-note" id="mapNote" style="margin-top:10px">Pin positions are suburb-level, so zoom in and check the street map to find the clubhouse entrance.</p>
+    <button class="btn ghost full" id="snapBtn">Improve pin accuracy</button>
+    <div id="snapResult"></div>
+  </section>
+
+  <!-- COURSES -->
+  <section class="view" id="v-courses">
+    <input class="field" id="search" type="search" placeholder="Search course or suburb" autocomplete="off">
+    <div class="chips" id="listRegions" style="margin-top:10px"></div>
+    <div id="courseList"></div>
+    <button class="btn ghost full" id="addCourse" style="margin-top:12px">Add a course</button>
+  </section>
+
+  <!-- ROUNDS -->
+  <section class="view" id="v-rounds">
+    <h2 class="sec">Rounds</h2>
+    <p class="sec-note">Stroke play, hole by hole.</p>
+    <button class="btn full" id="newRound">New round</button>
+    <div id="roundList" style="margin-top:14px"></div>
+  </section>
+
+  <!-- PLAYERS -->
+  <section class="view" id="v-players">
+    <h2 class="sec">Regulars</h2>
+    <p class="sec-note">Your saved roster. Pick who's playing at the start of each round.</p>
+    <div class="row">
+      <input class="field" id="newPlayerName" placeholder="Name" autocomplete="off">
+      <button class="btn" id="addPlayer">Add</button>
+    </div>
+    <div id="playerList" style="margin-top:12px"></div>
+  </section>
+
+  <!-- STATS -->
+  <section class="view" id="v-stats">
+    <h2 class="sec">Stats</h2>
+    <p class="sec-note">Across every round you've recorded.</p>
+    <div class="chips" id="statPlayers"></div>
+    <div id="statBody"></div>
+    <div class="divider"></div>
+    <div class="row">
+      <button class="btn ghost" style="flex:1" id="exportBtn">Export backup</button>
+      <button class="btn ghost" style="flex:1" id="importBtn">Import backup</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" hidden>
+    <p class="foot">Data is saved on this device. Export a backup before clearing your browser or moving to a new phone.</p>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+/* =========================================================
+   COURSE DATA — NSW
+   [name, suburb, region, lat, lng, holes]
+   Coordinates are suburb-level approximations.
+   ========================================================= */
+const R = {
+  SYD:"Sydney", ILL:"Illawarra & South Coast", HUN:"Hunter & Central Coast",
+  NC:"North Coast", BM:"Blue Mountains", SH:"Southern Highlands & Capital",
+  CW:"Central West", RIV:"Riverina & Murray", NW:"North West & Far West"
+};
+const COURSES_RAW = [
+["Royal Sydney Golf Club","Rose Bay",R.SYD,-33.8731,151.2661,18],
+["The Australian Golf Club","Rosebery",R.SYD,-33.9180,151.2090,18],
+["The Lakes Golf Club","Eastlakes",R.SYD,-33.9400,151.2170,18],
+["New South Wales Golf Club","La Perouse",R.SYD,-33.9947,151.2439,18],
+["St Michael's Golf Club","Little Bay",R.SYD,-33.9800,151.2480,18],
+["The Coast Golf Club","Little Bay",R.SYD,-33.9760,151.2520,18],
+["Bonnie Doon Golf Club","Pagewood",R.SYD,-33.9440,151.2260,18],
+["Eastlake Golf Club","Kingsford",R.SYD,-33.9330,151.2300,18],
+["Moore Park Golf","Moore Park",R.SYD,-33.8960,151.2230,18],
+["Marrickville Golf Club","Marrickville",R.SYD,-33.9130,151.1550,9],
+["Bardwell Valley Golf Club","Bardwell Park",R.SYD,-33.9330,151.1300,18],
+["Kogarah Golf Club","Arncliffe",R.SYD,-33.9400,151.1500,18],
+["Beverley Park Golf Club","Kogarah",R.SYD,-33.9700,151.1350,18],
+["Bexley Golf Club","Kingsgrove",R.SYD,-33.9450,151.1080,18],
+["Hurstville Golf Course","Hurstville",R.SYD,-33.9700,151.1080,18],
+["Canterbury Golf Course","Beverly Hills",R.SYD,-33.9420,151.0990,18],
+["St George Golf Club","Sans Souci",R.SYD,-33.9970,151.1310,18],
+["Kareela Golf Club","Kareela",R.SYD,-34.0180,151.0780,18],
+["Cronulla Golf Club","Cronulla",R.SYD,-34.0480,151.1490,18],
+["Woolooware Golf Club","Woolooware",R.SYD,-34.0400,151.1360,18],
+["Bankstown Golf Club","Georges Hall",R.SYD,-33.9160,150.9880,18],
+["Georges River Golf Club","Georges Hall",R.SYD,-33.9190,150.9820,18],
+["Liverpool Golf Club","Lurnea",R.SYD,-33.9330,150.8960,18],
+["Carnarvon Golf Club","Lidcombe",R.SYD,-33.8600,151.0430,18],
+["Rosnay Golf Club","Auburn",R.SYD,-33.8480,151.0330,18],
+["Massey Park Golf Course","Concord",R.SYD,-33.8480,151.0950,18],
+["Concord Golf Club","Concord",R.SYD,-33.8460,151.1000,18],
+["Strathfield Golf Club","Strathfield",R.SYD,-33.8710,151.0890,18],
+["Barnwell Park Golf Club","Five Dock",R.SYD,-33.8680,151.1290,18],
+["Ryde-Parramatta Golf Club","Gladesville",R.SYD,-33.8330,151.1310,18],
+["Lane Cove Golf Club","Northwood",R.SYD,-33.8130,151.1480,9],
+["Chatswood Golf Club","Chatswood West",R.SYD,-33.7940,151.1670,18],
+["Roseville Golf Club","Roseville",R.SYD,-33.7770,151.1830,18],
+["Killara Golf Club","Killara",R.SYD,-33.7620,151.1580,18],
+["Gordon Golf Club","Killara",R.SYD,-33.7680,151.1480,18],
+["Pymble Golf Club","St Ives",R.SYD,-33.7290,151.1610,18],
+["Avondale Golf Club","Pymble",R.SYD,-33.7400,151.1350,18],
+["Asquith Golf Club","Mount Colah",R.SYD,-33.6690,151.1090,18],
+["Pennant Hills Golf Club","Beecroft",R.SYD,-33.7500,151.0600,18],
+["Thornleigh Golf Centre","Thornleigh",R.SYD,-33.7300,151.0800,9],
+["Castle Hill Country Club","Castle Hill",R.SYD,-33.7300,151.0100,18],
+["Oatlands Golf Club","Oatlands",R.SYD,-33.7940,151.0350,18],
+["Cumberland Golf Club","Greystanes",R.SYD,-33.8180,150.9430,18],
+["Fox Hills Golf Club","Stanhope Gardens",R.SYD,-33.7150,150.9200,18],
+["Stonecutters Ridge Golf Club","Colebee",R.SYD,-33.7280,150.8500,18],
+["Dunheved Golf Club","St Marys",R.SYD,-33.7530,150.7690,18],
+["Penrith Golf Club","Penrith",R.SYD,-33.7560,150.6950,18],
+["Glenmore Heritage Valley Golf","Mulgoa",R.SYD,-33.8100,150.6500,18],
+["Wallacia Country Club","Wallacia",R.SYD,-33.8630,150.6390,18],
+["Twin Creeks Golf & Country Club","Luddenham",R.SYD,-33.8500,150.7300,18],
+["Richmond Golf Club","Richmond",R.SYD,-33.6000,150.7500,18],
+["Windsor Country Golf Club","South Windsor",R.SYD,-33.6100,150.8100,18],
+["Riverside Oaks Golf Resort","Cattai",R.SYD,-33.5500,150.8900,18],
+["Lynwood Country Club","Pitt Town",R.SYD,-33.5900,150.8600,18],
+["Manly Golf Club","Balgowlah",R.SYD,-33.7950,151.2670,18],
+["Balgowlah Golf Club","Balgowlah",R.SYD,-33.7930,151.2610,9],
+["Cammeray Golf Club","Cammeray",R.SYD,-33.8190,151.2140,9],
+["Northbridge Golf Club","Northbridge",R.SYD,-33.8090,151.2210,18],
+["Castle Cove Golf Club","Castle Cove",R.SYD,-33.7930,151.2090,18],
+["Warringah Golf Club","North Manly",R.SYD,-33.7650,151.2720,18],
+["Cromer Golf Club","Cromer",R.SYD,-33.7280,151.2760,18],
+["Long Reef Golf Club","Collaroy",R.SYD,-33.7360,151.3070,18],
+["Elanora Country Club","Narrabeen",R.SYD,-33.7100,151.2900,18],
+["Mona Vale Golf Club","Mona Vale",R.SYD,-33.6790,151.3020,18],
+["Bayview Golf Club","Mona Vale",R.SYD,-33.6580,151.2960,18],
+["Avalon Golf Course","Avalon Beach",R.SYD,-33.6380,151.3230,9],
+["Terrey Hills Golf & Country Club","Terrey Hills",R.SYD,-33.6870,151.2170,18],
+["Monash Country Club","Ingleside",R.SYD,-33.6800,151.2400,18],
+["Macquarie Links Golf Club","Macquarie Links",R.SYD,-33.9840,150.8580,18],
+["Campbelltown Golf Club","Glen Alpine",R.SYD,-34.0830,150.7800,18],
+["Camden Golf Club","Camden",R.SYD,-34.0500,150.6960,18],
+["Antill Park Country Golf Club","Picton",R.SYD,-34.1730,150.6100,18],
+
+["Wollongong Golf Club","Wollongong",R.ILL,-34.4180,150.9000,18],
+["Russell Vale Golf Club","Russell Vale",R.ILL,-34.3700,150.9050,18],
+["Port Kembla Golf Club","Primbee",R.ILL,-34.4890,150.8890,18],
+["The Grange Golf Club","Kembla Grange",R.ILL,-34.4880,150.8080,18],
+["Calderwood Valley Golf Course","Calderwood",R.ILL,-34.5700,150.7900,18],
+["Links Shell Cove","Shell Cove",R.ILL,-34.5900,150.8600,18],
+["Kiama Golf Club","Kiama",R.ILL,-34.6400,150.8500,18],
+["Jamberoo Golf Club","Jamberoo",R.ILL,-34.6480,150.7770,18],
+["Gerringong Golf Club","Gerringong",R.ILL,-34.7440,150.8280,18],
+["Shoalhaven Heads Golf Club","Shoalhaven Heads",R.ILL,-34.8500,150.7400,18],
+["Nowra Golf Club","Nowra",R.ILL,-34.8700,150.6000,18],
+["St Georges Basin Country Club","St Georges Basin",R.ILL,-35.0900,150.6000,18],
+["Sussex Inlet Golf Club","Sussex Inlet",R.ILL,-35.1600,150.5900,18],
+["Mollymook Golf Club","Mollymook",R.ILL,-35.3300,150.4700,18],
+["Catalina Country Club","Batemans Bay",R.ILL,-35.7200,150.1800,18],
+["Moruya Golf Club","Moruya",R.ILL,-35.9100,150.1300,18],
+["Tuross Head Country Club","Tuross Head",R.ILL,-36.0500,150.1400,18],
+["Narooma Golf Club","Narooma",R.ILL,-36.2100,150.1300,18],
+["Bermagui Country Club","Bermagui",R.ILL,-36.4200,150.0700,18],
+["Tura Beach Country Club","Tura Beach",R.ILL,-36.8200,149.9200,18],
+["Pambula-Merimbula Golf Club","Pambula Beach",R.ILL,-36.9400,149.9100,18],
+["Eden Golf Club","Eden",R.ILL,-37.0600,149.9000,18],
+
+["Newcastle Golf Club","Fern Bay",R.HUN,-32.8700,151.8000,18],
+["Merewether Golf Club","Adamstown",R.HUN,-32.9400,151.7200,18],
+["Charlestown Golf Club","Charlestown",R.HUN,-32.9600,151.6900,18],
+["Waratah Golf Club","Charlestown",R.HUN,-32.9700,151.6800,18],
+["Belmont Golf Club","Belmont",R.HUN,-33.0300,151.6600,18],
+["Toronto Country Club","Toronto",R.HUN,-33.0100,151.5900,18],
+["Pacific Dunes Golf Club","Medowie",R.HUN,-32.7500,151.8500,18],
+["Nelson Bay Golf Club","Nelson Bay",R.HUN,-32.7200,152.1400,18],
+["Horizons Golf Resort","Salamander Bay",R.HUN,-32.7200,152.0800,18],
+["Maitland Golf Club","Rutherford",R.HUN,-32.7200,151.5300,18],
+["Cessnock Golf Club","Cessnock",R.HUN,-32.8300,151.3500,18],
+["The Vintage Golf Club","Pokolbin",R.HUN,-32.7700,151.2900,18],
+["Cypress Lakes Golf & Country Club","Pokolbin",R.HUN,-32.7900,151.3000,18],
+["Singleton Golf Club","Singleton",R.HUN,-32.5600,151.1700,18],
+["Muswellbrook Golf Club","Muswellbrook",R.HUN,-32.2600,150.8900,18],
+["Scone Golf Club","Scone",R.HUN,-32.0500,150.8700,18],
+["Ellerston Golf Course","Ellerston",R.HUN,-31.9300,151.0700,18],
+["Magenta Shores Golf & Country Club","Magenta",R.HUN,-33.2600,151.5500,18],
+["Toukley Golf Club","Toukley",R.HUN,-33.2600,151.5400,18],
+["Kooindah Waters Golf Club","Wyong",R.HUN,-33.2800,151.4200,18],
+["Shelly Beach Golf Club","Shelly Beach",R.HUN,-33.3500,151.5000,18],
+["Avoca Beach Golf Club","Avoca Beach",R.HUN,-33.4700,151.4300,18],
+["Gosford Golf Club","East Gosford",R.HUN,-33.4400,151.3500,18],
+["Everglades Country Club","Woy Woy",R.HUN,-33.4900,151.3200,18],
+
+["Coolangatta & Tweed Heads Golf","Tweed Heads",R.NC,-28.1800,153.5300,18],
+["Murwillumbah Golf Club","Murwillumbah",R.NC,-28.3300,153.4000,18],
+["Ocean Shores Country Club","Ocean Shores",R.NC,-28.5000,153.5400,18],
+["Byron Bay Golf Club","Byron Bay",R.NC,-28.6400,153.6000,18],
+["Ballina Golf Club","East Ballina",R.NC,-28.8600,153.5900,18],
+["Lismore Golf Club","Lismore",R.NC,-28.8100,153.2800,18],
+["Casino Golf Club","Casino",R.NC,-28.8600,153.0500,18],
+["Yamba Golf & Country Club","Yamba",R.NC,-29.4400,153.3500,18],
+["Grafton District Golf Club","Grafton",R.NC,-29.6900,152.9300,18],
+["Coffs Harbour Golf Club","Coffs Harbour",R.NC,-30.3000,153.1200,18],
+["Sawtell Golf Club","Sawtell",R.NC,-30.3700,153.0900,18],
+["Nambucca Heads Island Golf Club","Nambucca Heads",R.NC,-30.6400,153.0000,18],
+["Kempsey Golf Club","Kempsey",R.NC,-31.0800,152.8400,18],
+["Port Macquarie Golf Club","Port Macquarie",R.NC,-31.4400,152.9000,18],
+["Taree Golf Club","Taree",R.NC,-31.9100,152.4700,18],
+["Tallwoods Golf Club","Hallidays Point",R.NC,-32.0700,152.5300,18],
+["Forster Tuncurry Golf Club","Forster",R.NC,-32.1800,152.5000,18],
+
+["Leura Golf Club","Leura",R.BM,-33.7150,150.3350,18],
+["Wentworth Falls Country Club","Wentworth Falls",R.BM,-33.7100,150.3700,9],
+["Blackheath Golf Club","Blackheath",R.BM,-33.6400,150.2800,18],
+["Springwood Country Club","Springwood",R.BM,-33.7000,150.5700,18],
+["Lithgow Golf Club","Lithgow",R.BM,-33.4800,150.1500,18],
+
+["Bowral Golf Club","Bowral",R.SH,-34.4700,150.4200,18],
+["Highlands Golf Club","Mittagong",R.SH,-34.4500,150.4500,18],
+["Moss Vale Golf Club","Moss Vale",R.SH,-34.5500,150.3700,18],
+["Mount Broughton Golf & Country Club","Sutton Forest",R.SH,-34.5800,150.3200,18],
+["Goulburn Golf Club","Goulburn",R.SH,-34.7600,149.7300,18],
+["Yass Golf Club","Yass",R.SH,-34.8400,148.9100,18],
+["Queanbeyan Golf Club","Queanbeyan",R.SH,-35.3500,149.2300,18],
+["Cooma Golf Club","Cooma",R.SH,-36.2300,149.1300,18],
+
+["Bathurst Golf Club","Bathurst",R.CW,-33.4200,149.5600,18],
+["Orange Golf Club","Orange",R.CW,-33.3000,149.1000,18],
+["Duntryleague Golf Club","Orange",R.CW,-33.2900,149.0800,18],
+["Mudgee Golf Club","Mudgee",R.CW,-32.6000,149.5800,18],
+["Dubbo Golf Club","Dubbo",R.CW,-32.2500,148.6100,18],
+["Parkes Golf Club","Parkes",R.CW,-33.1400,148.1700,18],
+["Forbes Golf Club","Forbes",R.CW,-33.3800,148.0100,18],
+["Cowra Golf Club","Cowra",R.CW,-33.8400,148.6900,18],
+["Young Golf Club","Young",R.CW,-34.3100,148.3000,18],
+["Cootamundra Country Club","Cootamundra",R.CW,-34.6400,148.0300,18],
+
+["Wagga Wagga Country Club","Wagga Wagga",R.RIV,-35.1200,147.3700,18],
+["Temora Golf Club","Temora",R.RIV,-34.4500,147.5400,18],
+["Tumut Golf Club","Tumut",R.RIV,-35.3000,148.2200,18],
+["Leeton Golf Club","Leeton",R.RIV,-34.5500,146.4000,18],
+["Griffith Golf Club","Griffith",R.RIV,-34.2900,146.0400,18],
+["Albury Golf Club","Thurgoona",R.RIV,-36.0400,146.9800,18],
+["Corowa Golf Club","Corowa",R.RIV,-36.0000,146.3800,18],
+["Deniliquin Golf Club","Deniliquin",R.RIV,-35.5300,144.9500,18],
+["Wentworth Golf Club","Wentworth",R.RIV,-34.1100,141.9200,18],
+
+["Tamworth Golf Club","Tamworth",R.NW,-31.1000,150.9300,18],
+["Armidale Golf Club","Armidale",R.NW,-30.5200,151.6600,18],
+["Gunnedah Golf Club","Gunnedah",R.NW,-30.9800,150.2500,18],
+["Narrabri Golf Club","Narrabri",R.NW,-30.3300,149.7800,18],
+["Moree Golf Club","Moree",R.NW,-29.4700,149.8500,18],
+["Inverell Golf Club","Inverell",R.NW,-29.7700,151.1100,18],
+["Glen Innes Golf Club","Glen Innes",R.NW,-29.7400,151.7400,18],
+["Dubbo Macquarie Golf","Dubbo",R.NW,-32.2600,148.5900,9],
+["Cobar Golf Club","Cobar",R.NW,-31.4900,145.8400,18],
+["Broken Hill Golf Club","Broken Hill",R.NW,-31.9600,141.4500,18]
+];
+
+const F9=[4,4,3,5,4,4,3,4,5], B9=[4,5,4,3,4,4,3,5,4];
+function defaultPars(h){ return h===9 ? F9.slice() : F9.concat(B9); }
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
+
+const BUILTIN = COURSES_RAW.map(c=>({
+  id:"c_"+slug(c[0]), name:c[0], suburb:c[1], region:c[2],
+  lat:c[3], lng:c[4], holes:c[5], builtin:true
+}));
+
+/* =========================================================
+   STORAGE
+   ========================================================= */
+const KEY = "pinhigh-nsw-v1"; // unchanged on purpose: renaming this would orphan saved rounds
+const Store = {
+  async load(){
+    if (typeof window.storage !== "undefined" && window.storage){
+      try{ const r = await window.storage.get(KEY,false); if(r && r.value) return JSON.parse(r.value); }
+      catch(e){ /* key missing or unavailable */ }
+    }
+    try{ const v = localStorage.getItem(KEY); if(v) return JSON.parse(v); }catch(e){}
+    return null;
+  },
+  async save(data){
+    const s = JSON.stringify(data);
+    let ok=false;
+    if (typeof window.storage !== "undefined" && window.storage){
+      try{ await window.storage.set(KEY,s,false); ok=true; }catch(e){}
+    }
+    try{ localStorage.setItem(KEY,s); ok=true; }catch(e){}
+    return ok;
+  }
+};
+
+let S = { players:[], rounds:[], customCourses:[], parsByCourse:{}, holesByCourse:{}, coordFix:{} };
+let COURSES = [];
+
+function rebuildCourses(){
+  COURSES = BUILTIN.concat(S.customCourses||[]).sort((a,b)=>a.name.localeCompare(b.name));
+  const fix = S.coordFix || {};
+  COURSES = COURSES.map(c=>{
+    if (fix[c.id]) return Object.assign({}, c, {lat:fix[c.id][0], lng:fix[c.id][1]});
+    return c;
+  });
+}
+function holesFor(c){ return (S.holesByCourse && S.holesByCourse[c.id]) || c.holes || 18; }
+function parsFor(c){
+  const h = holesFor(c);
+  const p = S.parsByCourse && S.parsByCourse[c.id];
+  if (p && p.length === h) return p.slice();
+  return defaultPars(h);
+}
+function courseById(id){ return COURSES.find(c=>c.id===id); }
+async function persist(){ await Store.save(S); }
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const $ = s=>document.querySelector(s);
+const el = (t,cls,txt)=>{ const n=document.createElement(t); if(cls)n.className=cls; if(txt!=null)n.textContent=txt; return n; };
+const uid = ()=> Math.random().toString(36).slice(2,10);
+function fmtDate(iso){
+  const d = new Date(iso+"T00:00:00");
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+}
+function todayISO(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function vsPar(total,parTotal){
+  const d = total - parTotal;
+  if (d===0) return "E";
+  return (d>0?"+":"")+d;
+}
+let toastT;
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1900);
+}
+function playedCourseIds(){
+  const s = new Set();
+  S.rounds.forEach(r=>s.add(r.courseId));
+  return s;
+}
+
+/* =========================================================
+   SHEET
+   ========================================================= */
+function openSheet(build){
+  if (CMAP){ try{ CMAP.remove(); }catch(e){} CMAP = null; }
+  if (PMAP){ try{ PMAP.remove(); }catch(e){} PMAP = null; PMARK = null; }
+  const body = $("#sheetBody"); body.innerHTML="";
+  build(body);
+  $("#sheet").classList.add("show"); $("#scrim").classList.add("show");
+  document.body.classList.add("sheet-open");
+  $("#sheet").scrollTop = 0;
+}
+function closeSheet(){
+  if (CMAP){ try{ CMAP.remove(); }catch(e){} CMAP = null; }
+  if (PMAP){ try{ PMAP.remove(); }catch(e){} PMAP = null; PMARK = null; }
+  $("#sheet").classList.remove("show"); $("#scrim").classList.remove("show");
+  document.body.classList.remove("sheet-open");
+}
+$("#scrim").addEventListener("click", closeSheet);
+
+/* =========================================================
+   MAP
+   ========================================================= */
+const NSW_OUTLINE = [
+ [153.55,-28.17],[153.60,-28.66],[153.42,-29.05],[153.36,-29.43],[153.28,-29.90],
+ [153.15,-30.30],[153.05,-30.85],[152.92,-31.43],[152.75,-31.85],[152.52,-32.18],
+ [152.20,-32.55],[151.79,-32.92],[151.62,-33.28],[151.35,-33.60],[151.28,-33.86],
+ [151.22,-34.05],[151.00,-34.25],[150.90,-34.42],[150.85,-34.70],[150.72,-35.10],
+ [150.40,-35.45],[150.20,-35.70],[150.13,-36.21],[150.05,-36.55],[149.97,-36.90],
+ [149.92,-37.25],[149.90,-37.50],[149.20,-37.25],[148.60,-37.05],[148.20,-36.85],
+ [147.70,-36.10],[147.20,-36.00],[146.92,-36.08],[146.40,-36.05],[145.90,-35.90],
+ [145.40,-35.88],[144.95,-35.98],[144.40,-35.70],[143.90,-35.45],[143.55,-35.30],
+ [143.10,-34.95],[142.60,-34.75],[142.10,-34.40],[141.60,-34.20],[141.00,-34.10],
+ [141.00,-33.00],[141.00,-31.50],[141.00,-30.20],[141.00,-29.00],
+ [143.00,-29.00],[145.50,-29.00],[147.50,-28.99],[148.95,-28.99],[149.50,-28.75],
+ [150.00,-28.60],[150.60,-28.70],[151.30,-28.90],[151.60,-28.80],[152.00,-28.60],
+ [152.50,-28.35],[153.00,-28.20],[153.35,-28.16]
+];
+const KX = Math.cos(33*Math.PI/180); // 0.8387
+const px = lng => lng*KX;
+const py = lat => -lat;
+const HOME = {x0:117.6, y0:27.8, w:11.8, h:10.2};
+let VB = {...HOME};
+const svg = $("#map");
+
+function projPath(pts){
+  return pts.map((p,i)=>(i?"L":"M")+px(p[0]).toFixed(3)+" "+py(p[1]).toFixed(3)).join(" ")+" Z";
+}
+function setVB(){
+  svg.setAttribute("viewBox", `${VB.x0} ${VB.y0} ${VB.w} ${VB.h}`);
+  const k = VB.w/HOME.w;
+  svg.querySelectorAll(".pin").forEach(p=>{
+    p.setAttribute("r", (0.075*k).toFixed(4));
+    p.setAttribute("stroke-width", (0.018*k).toFixed(4));
+  });
+}
+function drawFallbackMap(){
+  svg.innerHTML="";
+  const land = document.createElementNS("http://www.w3.org/2000/svg","path");
+  land.setAttribute("d", projPath(NSW_OUTLINE));
+  land.setAttribute("class","land");
+  svg.appendChild(land);
+  const seen = playedCourseIds();
+  COURSES.forEach(c=>{
+    const p = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    p.setAttribute("cx", px(c.lng).toFixed(4));
+    p.setAttribute("cy", py(c.lat).toFixed(4));
+    p.setAttribute("class","pin"+(seen.has(c.id)?" seen":""));
+    p.dataset.id = c.id;
+    svg.appendChild(p);
+  });
+  setVB();
+}
+function zoomTo(cx,cy,w){
+  const h = w * (HOME.h/HOME.w);
+  VB = {x0:cx-w/2, y0:cy-h/2, w, h};
+  setVB();
+}
+function zoomBy(f){
+  const cx = VB.x0+VB.w/2, cy = VB.y0+VB.h/2;
+  let w = Math.min(HOME.w, Math.max(0.25, VB.w*f));
+  zoomTo(cx,cy,w);
+}
+$("#zIn").onclick = ()=>zoomBy(0.6);
+$("#zOut").onclick = ()=>zoomBy(1/0.6);
+$("#zReset").onclick = ()=>{ VB={...HOME}; setVB(); hideCallout(); };
+
+const REGION_VIEWS = {
+  "Sydney":[151.10,-33.85,1.3],
+  "Illawarra & South Coast":[150.50,-35.30,2.6],
+  "Hunter & Central Coast":[151.55,-32.80,1.7],
+  "North Coast":[152.90,-30.20,2.6],
+  "Blue Mountains":[150.35,-33.65,1.1],
+  "Southern Highlands & Capital":[149.90,-34.80,2.4],
+  "Central West":[148.90,-33.10,3.0],
+  "Riverina & Murray":[145.50,-35.20,6.0],
+  "North West & Far West":[147.00,-30.50,8.0]
+};
+const REGION_ZOOM = {
+  "Sydney":10, "Illawarra & South Coast":8, "Hunter & Central Coast":9,
+  "North Coast":7, "Blue Mountains":10, "Southern Highlands & Capital":8,
+  "Central West":7, "Riverina & Murray":7, "North West & Far West":6
+};
+function buildRegionChips(){
+  const wrap = $("#mapRegions"); wrap.innerHTML="";
+  const all = el("button","chip","All NSW"); all.setAttribute("aria-pressed","true");
+  all.onclick = ()=>{ markChip(wrap,all); if (LMAP) fitNSW(); else { VB={...HOME}; setVB(); hideCallout(); } };
+  wrap.appendChild(all);
+  Object.keys(REGION_VIEWS).forEach(r=>{
+    const v = REGION_VIEWS[r];
+    const b = el("button","chip", r.split(" & ")[0]);
+    b.setAttribute("aria-pressed","false");
+    b.onclick = ()=>{
+      markChip(wrap,b);
+      if (LMAP) LMAP.flyTo([v[1],v[0]], REGION_ZOOM[r]||8, {duration:.7});
+      else { zoomTo(px(v[0]), py(v[1]), v[2]); hideCallout(); }
+    };
+    wrap.appendChild(b);
+  });
+}
+function markChip(wrap,active){
+  wrap.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed", c===active?"true":"false"));
+}
+
+/* map gestures */
+let drag=null, pinch=null, moved=false;
+svg.addEventListener("pointerdown", e=>{
+  svg.setPointerCapture(e.pointerId);
+  if (!drag){ drag={id:e.pointerId,x:e.clientX,y:e.clientY,vb:{...VB}}; moved=false; }
+  else if (!pinch){ pinch={a:drag,b:{id:e.pointerId,x:e.clientX,y:e.clientY},vb:{...VB},d0:null}; }
+});
+svg.addEventListener("pointermove", e=>{
+  if (pinch && (e.pointerId===pinch.a.id || e.pointerId===pinch.b.id)){
+    if (e.pointerId===pinch.a.id){pinch.a.x=e.clientX;pinch.a.y=e.clientY;} else {pinch.b.x=e.clientX;pinch.b.y=e.clientY;}
+    const d = Math.hypot(pinch.a.x-pinch.b.x, pinch.a.y-pinch.b.y);
+    if (pinch.d0===null){ pinch.d0=d; return; }
+    const f = pinch.d0/Math.max(d,1);
+    const cx = pinch.vb.x0+pinch.vb.w/2, cy = pinch.vb.y0+pinch.vb.h/2;
+    zoomTo(cx,cy, Math.min(HOME.w, Math.max(0.25, pinch.vb.w*f)));
+    moved=true; return;
+  }
+  if (drag && e.pointerId===drag.id){
+    const r = svg.getBoundingClientRect();
+    const dx = (e.clientX-drag.x)/r.width * drag.vb.w;
+    const dy = (e.clientY-drag.y)/r.height * drag.vb.h;
+    if (Math.abs(e.clientX-drag.x)>4 || Math.abs(e.clientY-drag.y)>4) moved=true;
+    VB = {...drag.vb, x0:drag.vb.x0-dx, y0:drag.vb.y0-dy};
+    setVB();
+  }
+});
+function endPointer(e){
+  if (pinch && (e.pointerId===pinch.a.id||e.pointerId===pinch.b.id)){ pinch=null; drag=null; return; }
+  if (drag && e.pointerId===drag.id){
+    if (!moved){
+      const t = e.target;
+      if (t && t.classList && t.classList.contains("pin")) showCallout(t.dataset.id, t);
+      else hideCallout();
+    }
+    drag=null;
+  }
+}
+svg.addEventListener("pointerup", endPointer);
+svg.addEventListener("pointercancel", endPointer);
+svg.addEventListener("wheel", e=>{ e.preventDefault(); zoomBy(e.deltaY>0?1.15:0.87); }, {passive:false});
+
+let calloutId=null;
+function showCallout(id, node){
+  const c = courseById(id); if(!c) return;
+  calloutId=id;
+  svg.querySelectorAll(".pin.sel").forEach(p=>p.classList.remove("sel"));
+  if (node) node.classList.add("sel");
+  const n = S.rounds.filter(r=>r.courseId===id).length;
+  $("#coNm").textContent = c.name;
+  $("#coMt").textContent = c.suburb + " · " + holesFor(c) + " holes" + (n? " · played "+n+(n===1?" time":" times") : "");
+  $("#callout").classList.add("show");
+}
+function hideCallout(){
+  $("#callout").classList.remove("show"); calloutId=null;
+  svg.querySelectorAll(".pin.sel").forEach(p=>p.classList.remove("sel"));
+}
+$("#coPlay").onclick = ()=>{ if(calloutId){ const id=calloutId; hideCallout(); newRoundSheet(id);} };
+$("#coOpen").onclick = ()=>{ if(calloutId){ const id=calloutId; hideCallout(); courseSheet(id);} };
+
+/* =========================================================
+   LEAFLET — real street map, falls back to the schematic
+   ========================================================= */
+let LMAP = null, MARKERS = {}, selMarker = null, locMarker = null;
+const NSW_BOUNDS = [[-37.6,140.9],[-28.1,153.7]];
+
+function fitNSW(){ if (LMAP) LMAP.fitBounds(NSW_BOUNDS, {padding:[12,12]}); }
+
+function pinIcon(seen){
+  return L.divIcon({
+    className:"",
+    html:'<span class="gpin'+(seen?" seen":"")+'"><i></i></span>',
+    iconSize:[30,30], iconAnchor:[15,28], popupAnchor:[0,-26]
+  });
+}
+function popupFor(c){
+  const box = el("div","pop");
+  box.appendChild(el("div","nm", c.name));
+  const n = S.rounds.filter(r=>r.courseId===c.id).length;
+  box.appendChild(el("div","mt", c.suburb+" · "+holesFor(c)+" holes"+(n?" · played "+n+(n===1?" time":" times"):"")));
+  const row = el("div","row");
+  const play = el("button","btn","Start a round"); play.style.flex="1";
+  play.onclick = ()=>{ LMAP.closePopup(); newRoundSheet(c.id); };
+  const det = el("button","btn ghost","Details");
+  det.onclick = ()=>{ LMAP.closePopup(); courseSheet(c.id); };
+  row.appendChild(play); row.appendChild(det);
+  box.appendChild(row);
+  return box;
+}
+function initLeaflet(){
+  if (typeof L === "undefined") return false;
+  $("#leafletWrap").style.display="block";
+  LMAP = L.map("lmap", {
+    zoomControl:true, attributionControl:true,
+    minZoom:5, maxZoom:19, tap:true
+  });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19, crossOrigin:true,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(LMAP);
+  LMAP.zoomControl.setPosition("topright");
+  fitNSW();
+  drawLeafletPins();
+  setTimeout(()=>LMAP.invalidateSize(),150);
+  return true;
+}
+function drawLeafletPins(){
+  if (!LMAP) return;
+  Object.values(MARKERS).forEach(m=>LMAP.removeLayer(m));
+  MARKERS = {};
+  const seen = playedCourseIds();
+  COURSES.forEach(c=>{
+    if (c.lat==null || c.lng==null) return;
+    const m = L.marker([c.lat,c.lng], {icon:pinIcon(seen.has(c.id)), title:c.name, riseOnHover:true});
+    m.bindPopup(()=>popupFor(c), {closeButton:true, autoPan:true});
+    m.on("popupopen", ()=>{
+      if (selMarker && selMarker._icon) selMarker._icon.querySelector(".gpin").classList.remove("sel");
+      selMarker = m;
+      if (m._icon) m._icon.querySelector(".gpin").classList.add("sel");
+    });
+    m.addTo(LMAP);
+    MARKERS[c.id] = m;
+  });
+}
+function focusCourseOnMap(id){
+  const c = courseById(id);
+  if (!LMAP || !c || c.lat==null) return false;
+  switchView("map");
+  LMAP.flyTo([c.lat,c.lng], 15, {duration:.8});
+  setTimeout(()=>{ const m=MARKERS[id]; if(m) m.openPopup(); }, 900);
+  return true;
+}
+$("#locBtn").onclick = ()=>{
+  if (!LMAP || !navigator.geolocation){ toast("Location isn't available"); return; }
+  toast("Finding you…");
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (locMarker) LMAP.removeLayer(locMarker);
+    locMarker = L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#1E6FD9",fillOpacity:1}).addTo(LMAP);
+    LMAP.flyTo(ll, 12, {duration:.8});
+    // nearest course
+    let best=null;
+    COURSES.forEach(c=>{
+      if (c.lat==null) return;
+      const d = Math.hypot((c.lat-ll[0]), (c.lng-ll[1])*0.84);
+      if (!best || d<best.d) best={c,d};
+    });
+    if (best) toast("Nearest: "+best.c.name);
+  }, ()=>toast("Couldn't get your location"), {enableHighAccuracy:false, timeout:9000});
+};
+$("#fitBtn").onclick = ()=>fitNSW();
+
+/* =========================================================
+   COURSE LIST
+   ========================================================= */
+let listFilter = "All";
+function buildListChips(){
+  const wrap = $("#listRegions"); wrap.innerHTML="";
+  const regions = ["All","Played"].concat(Object.values(R));
+  regions.forEach(r=>{
+    const b = el("button","chip", r==="All"?"All courses":(r==="Played"?"Played":r.split(" & ")[0]));
+    b.setAttribute("aria-pressed", r===listFilter?"true":"false");
+    b.onclick = ()=>{ listFilter=r; markChip(wrap,b); renderCourses(); };
+    wrap.appendChild(b);
+  });
+}
+function renderCourses(){
+  const q = $("#search").value.trim().toLowerCase();
+  const seen = playedCourseIds();
+  let items = COURSES.filter(c=>{
+    if (listFilter==="Played" && !seen.has(c.id)) return false;
+    if (listFilter!=="All" && listFilter!=="Played" && c.region!==listFilter) return false;
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.suburb.toLowerCase().includes(q);
+  });
+  const host = $("#courseList"); host.innerHTML="";
+  if (!items.length){
+    const e = el("div","empty");
+    e.appendChild(el("strong",null,"Nothing matches"));
+    e.appendChild(document.createTextNode("Try a different name or suburb, or add the course yourself."));
+    host.appendChild(e); return;
+  }
+  const ul = el("ul","list");
+  items.forEach(c=>{
+    const li = el("li");
+    const b = el("button","course-btn");
+    const g = el("div","grow");
+    g.appendChild(el("div","nm",c.name));
+    g.appendChild(el("div","mt", c.suburb+" · "+c.region+" · "+holesFor(c)+" holes"));
+    b.appendChild(g);
+    const n = S.rounds.filter(r=>r.courseId===c.id).length;
+    if (n) b.appendChild(el("span","played", n+"×"));
+    b.onclick = ()=>courseSheet(c.id);
+    li.appendChild(b); ul.appendChild(li);
+  });
+  host.appendChild(ul);
+}
+$("#search").addEventListener("input", renderCourses);
+
+function courseSheet(id){
+  const c = courseById(id);
+  openSheet(body=>{
+    body.appendChild(el("h3",null,c.name));
+    body.appendChild(el("p","sub", c.suburb+" · "+c.region));
+
+    const rounds = S.rounds.filter(r=>r.courseId===id)
+      .sort((a,b)=>b.date.localeCompare(a.date));
+
+    const g = el("div","stat-grid");
+    const s1 = el("div","stat"); s1.appendChild(el("div","k","Rounds here"));
+    s1.appendChild(el("div","v", String(rounds.length))); g.appendChild(s1);
+    const best = bestAtCourse(id);
+    const s2 = el("div","stat"); s2.appendChild(el("div","k","Your best"));
+    const v2 = el("div","v", best?String(best.total):"—");
+    if (best) { const sm=el("small",null," "+vsPar(best.total,best.par)); v2.appendChild(sm); }
+    s2.appendChild(v2); g.appendChild(s2);
+    body.appendChild(g);
+
+    const play = el("button","btn full","Start a round here");
+    play.style.marginTop="12px";
+    play.onclick = ()=>{ closeSheet(); newRoundSheet(id); };
+    body.appendChild(play);
+
+    if (c.lat != null){
+      const cmapBtn = el("button","btn quiet full","Course map");
+      cmapBtn.style.marginTop="8px";
+      cmapBtn.onclick = ()=>courseMapSheet(c.id);
+      body.appendChild(cmapBtn);
+      const onMap = el("button","btn quiet full","Show on map");
+      onMap.style.marginTop="8px";
+      onMap.onclick = ()=>{ closeSheet(); if(!focusCourseOnMap(c.id)) switchView("map"); };
+      body.appendChild(onMap);
+    }
+
+    const maps = el("a","btn ghost full","Open in maps");
+    maps.style.marginTop="8px"; maps.style.textDecoration="none";
+    maps.href = "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(c.name+" "+c.suburb+" NSW");
+    maps.target="_blank"; maps.rel="noopener";
+    body.appendChild(maps);
+
+    body.appendChild(el("label","lbl","Holes and par"));
+    const hrow = el("div","row");
+    const hsel = el("select","field");
+    [9,18].forEach(h=>{ const o=el("option",null,h+" holes"); o.value=h; if(h===holesFor(c))o.selected=true; hsel.appendChild(o); });
+    hrow.appendChild(hsel);
+    const parBtn = el("button","btn quiet","Edit pars");
+    hrow.appendChild(parBtn);
+    body.appendChild(hrow);
+    hsel.onchange = async ()=>{
+      S.holesByCourse[c.id] = parseInt(hsel.value,10);
+      delete S.parsByCourse[c.id];
+      await persist(); toast("Updated to "+hsel.value+" holes"); courseSheet(id);
+    };
+    parBtn.onclick = ()=>parSheet(id);
+
+    const pars = parsFor(c);
+    const pt = el("p","sec-note");
+    pt.style.marginTop="8px";
+    pt.textContent = "Par "+pars.reduce((a,b)=>a+b,0)+" — default layout unless you've edited it.";
+    body.appendChild(pt);
+
+    if (rounds.length){
+      body.appendChild(el("label","lbl","Times you've played"));
+      const ul = el("ul","list");
+      rounds.forEach(r=>{ ul.appendChild(roundListItem(r)); });
+      body.appendChild(ul);
+    }
+
+    if (!c.builtin){
+      const edit = el("button","btn ghost full","Edit this course");
+      edit.style.marginTop="14px";
+      edit.onclick = ()=>courseFormSheet({existing:c, onSaved:()=>courseSheet(id)});
+      body.appendChild(edit);
+
+      const del = el("button","btn danger full","Delete this course");
+      del.style.marginTop="8px";
+      del.onclick = async ()=>{
+        if (S.rounds.some(r=>r.courseId===id)){ toast("Delete its rounds first"); return; }
+        S.customCourses = S.customCourses.filter(x=>x.id!==id);
+        await persist(); rebuildCourses(); closeSheet(); renderAll(); toast("Course deleted");
+      };
+      body.appendChild(del);
+    }
+  });
+}
+
+function parSheet(id){
+  const c = courseById(id);
+  const pars = parsFor(c);
+  openSheet(body=>{
+    body.appendChild(el("h3",null,"Par for each hole"));
+    body.appendChild(el("p","sub", c.name));
+    const grid = el("div"); grid.style.display="grid";
+    grid.style.gridTemplateColumns="repeat(3,1fr)"; grid.style.gap="8px";
+    pars.forEach((p,i)=>{
+      const box = el("div","stat");
+      box.appendChild(el("div","k","Hole "+(i+1)));
+      const row = el("div","par-pick"); row.style.marginTop="4px";
+      [3,4,5].forEach(v=>{
+        const b = el("button",null,String(v));
+        b.style.cssText="width:100%;height:30px;border:1px solid var(--line);border-radius:7px;color:var(--rough);font-weight:600";
+        if (pars[i]===v){ b.style.background="var(--rough)"; b.style.color="var(--sand)"; }
+        b.onclick = ()=>{ pars[i]=v; S.parsByCourse[c.id]=pars.slice(); persist(); parSheet(id); };
+        row.appendChild(b);
+      });
+      box.appendChild(row); grid.appendChild(box);
+    });
+    body.appendChild(grid);
+    const tot = el("p","sec-note"); tot.style.marginTop="12px";
+    tot.textContent = "Total par "+pars.reduce((a,b)=>a+b,0);
+    body.appendChild(tot);
+    const done = el("button","btn full","Done");
+    done.onclick = ()=>{ courseSheet(id); };
+    body.appendChild(done);
+  });
+}
+
+let PMAP = null, PMARK = null;
+function courseFormSheet(opts){
+  opts = opts || {};
+  const existing = opts.existing || null;
+  openSheet(body=>{
+    body.appendChild(el("h3",null, existing ? "Edit course" : "Add a course"));
+    body.appendChild(el("p","sub", existing
+      ? "Change anything you got wrong the first time."
+      : "For any course missing from the list. It saves permanently."));
+
+    body.appendChild(el("label","lbl","Course name"));
+    const nm = el("input","field");
+    nm.value = existing ? existing.name : (opts.prefill||"");
+    body.appendChild(nm);
+
+    body.appendChild(el("label","lbl","Suburb or town"));
+    const sb = el("input","field");
+    sb.value = existing && existing.suburb!=="—" ? existing.suburb : "";
+    body.appendChild(sb);
+
+    body.appendChild(el("label","lbl","Region"));
+    const rg = el("select","field");
+    Object.values(R).forEach(r=>{
+      const o = el("option",null,r); o.value=r;
+      if (existing && existing.region===r) o.selected=true;
+      rg.appendChild(o);
+    });
+    body.appendChild(rg);
+
+    body.appendChild(el("label","lbl","Holes"));
+    const hs = el("select","field");
+    [9,18].forEach(h=>{
+      const o = el("option",null,h+" holes"); o.value=h;
+      const cur = existing ? holesFor(existing) : 18;
+      if (h===cur) o.selected=true;
+      hs.appendChild(o);
+    });
+    body.appendChild(hs);
+
+    /* location */
+    let lat = existing ? existing.lat : null;
+    let lng = existing ? existing.lng : null;
+    body.appendChild(el("label","lbl","Where is it?"));
+    const coordLine = el("p","sec-note"); coordLine.style.margin="0";
+    function updLine(){
+      coordLine.textContent = (lat==null)
+        ? "No pin yet. Tap the map to drop one, or skip it — everything except the map view works without."
+        : "Pin at "+lat.toFixed(4)+", "+lng.toFixed(4)+". Tap again to move it.";
+    }
+    updLine();
+    body.appendChild(coordLine);
+
+    const pm = el("div"); pm.id="pickmap";
+    body.appendChild(pm);
+
+    const locBtn = el("button","btn quiet full","Use my current location");
+    locBtn.style.marginTop="8px";
+    body.appendChild(locBtn);
+
+    const save = el("button","btn full", existing ? "Save changes" : "Save course");
+    save.style.marginTop="12px";
+    save.onclick = async ()=>{
+      if (!nm.value.trim()){ toast("Give it a name"); return; }
+      const holes = parseInt(hs.value,10);
+      let course;
+      if (existing){
+        course = S.customCourses.find(x=>x.id===existing.id);
+        if (!course){ toast("Couldn't find that course"); return; }
+        course.name = nm.value.trim();
+        course.suburb = sb.value.trim()||"—";
+        course.region = rg.value;
+        course.holes = holes;
+        course.lat = lat; course.lng = lng;
+        if (holesFor(course)!==holes){ S.holesByCourse[course.id]=holes; delete S.parsByCourse[course.id]; }
+      } else {
+        course = {
+          id:"u_"+uid(), name:nm.value.trim(), suburb:sb.value.trim()||"—",
+          region:rg.value, lat:lat, lng:lng, holes:holes, builtin:false
+        };
+        S.customCourses.push(course);
+      }
+      await persist(); rebuildCourses(); renderAll(); drawMap();
+      if (opts.onSaved) opts.onSaved(course);
+      else { closeSheet(); toast(existing ? "Course updated" : "Course saved"); }
+    };
+    body.appendChild(save);
+
+    if (!existing){
+      const cancel = el("button","btn ghost full","Cancel");
+      cancel.style.marginTop="8px";
+      cancel.onclick = ()=>{ if (opts.onCancel) opts.onCancel(); else closeSheet(); };
+      body.appendChild(cancel);
+    }
+
+    /* pick map */
+    if (typeof L === "undefined"){
+      pm.style.display="none";
+      locBtn.style.display="none";
+      return;
+    }
+    setTimeout(()=>{
+      if (!document.getElementById("pickmap")) return;
+      if (PMAP){ try{ PMAP.remove(); }catch(e){} PMAP=null; }
+      PMAP = L.map("pickmap",{zoomControl:true});
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        maxZoom:19,
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(PMAP);
+      if (lat!=null){ PMAP.setView([lat,lng],15); }
+      else if (LMAP){ PMAP.setView(LMAP.getCenter(), Math.max(LMAP.getZoom(),9)); }
+      else { PMAP.fitBounds(NSW_BOUNDS); }
+      PMARK = null;
+      function place(la,lo,zoom){
+        lat=la; lng=lo; updLine();
+        if (PMARK) PMAP.removeLayer(PMARK);
+        PMARK = L.marker([la,lo],{icon:pinIcon(false)}).addTo(PMAP);
+        if (zoom) PMAP.setView([la,lo], zoom);
+      }
+      if (lat!=null) place(lat,lng);
+      PMAP.on("click", e=>place(e.latlng.lat, e.latlng.lng));
+      setTimeout(()=>PMAP.invalidateSize(),100);
+
+      locBtn.onclick = ()=>{
+        if (!navigator.geolocation){ toast("Location isn't available"); return; }
+        toast("Finding you…");
+        navigator.geolocation.getCurrentPosition(
+          pos=>place(pos.coords.latitude, pos.coords.longitude, 16),
+          ()=>toast("Couldn't get your location"),
+          {enableHighAccuracy:true, timeout:9000}
+        );
+      };
+    }, 60);
+  });
+}
+$("#addCourse").onclick = ()=>courseFormSheet({});
+
+/* =========================================================
+   PLAYERS
+   ========================================================= */
+function renderPlayers(){
+  const host = $("#playerList"); host.innerHTML="";
+  if (!S.players.length){
+    const e = el("div","empty");
+    e.appendChild(el("strong",null,"No one on the roster"));
+    e.appendChild(document.createTextNode("Add yourself first, then anyone you play with regularly."));
+    host.appendChild(e); return;
+  }
+  const ul = el("ul","list");
+  S.players.forEach(p=>{
+    const li = el("li"); const b = el("button","course-btn");
+    const g = el("div","grow");
+    g.appendChild(el("div","nm", p.name + (p.isMe?" (you)":"")));
+    const n = S.rounds.filter(r=>r.players.some(x=>x.playerId===p.id)).length;
+    g.appendChild(el("div","mt", n?n+" round"+(n===1?"":"s")+" recorded":"no rounds yet"));
+    b.appendChild(g);
+    b.onclick = ()=>playerSheet(p.id);
+    li.appendChild(b); ul.appendChild(li);
+  });
+  host.appendChild(ul);
+}
+$("#addPlayer").onclick = async ()=>{
+  const v = $("#newPlayerName").value.trim();
+  if (!v){ toast("Type a name"); return; }
+  S.players.push({id:"p_"+uid(), name:v, isMe: S.players.length===0});
+  $("#newPlayerName").value="";
+  await persist(); renderPlayers();
+  toast(S.players.length===1 ? "Added — marked as you" : "Added");
+};
+function playerSheet(id){
+  const p = S.players.find(x=>x.id===id);
+  openSheet(body=>{
+    body.appendChild(el("h3",null,p.name));
+    const rounds = S.rounds.filter(r=>r.players.some(x=>x.playerId===id));
+    body.appendChild(el("p","sub", rounds.length+" round"+(rounds.length===1?"":"s")+" recorded"));
+    body.appendChild(el("label","lbl","Name"));
+    const nm = el("input","field"); nm.value=p.name; body.appendChild(nm);
+    const save = el("button","btn full","Save name"); save.style.marginTop="12px";
+    save.onclick = async ()=>{
+      if(!nm.value.trim()){toast("Name can't be blank");return;}
+      p.name = nm.value.trim();
+      S.rounds.forEach(r=>r.players.forEach(rp=>{ if(rp.playerId===id) rp.name=p.name; }));
+      await persist(); closeSheet(); renderAll(); toast("Saved");
+    };
+    body.appendChild(save);
+    if (!p.isMe){
+      const me = el("button","btn ghost full","Mark as me"); me.style.marginTop="8px";
+      me.onclick = async ()=>{ S.players.forEach(x=>x.isMe=false); p.isMe=true; await persist(); closeSheet(); renderAll(); toast("Marked as you"); };
+      body.appendChild(me);
+    }
+    const del = el("button","btn danger full","Remove from roster"); del.style.marginTop="8px";
+    del.onclick = async ()=>{
+      if (rounds.length){ toast("They're in saved rounds — can't remove"); return; }
+      S.players = S.players.filter(x=>x.id!==id);
+      await persist(); closeSheet(); renderAll(); toast("Removed");
+    };
+    body.appendChild(del);
+  });
+}
+
+/* =========================================================
+   NEW ROUND
+   ========================================================= */
+function newRoundSheet(preCourseId){
+  if (!S.players.length){
+    toast("Add yourself under Players first");
+    switchView("players"); return;
+  }
+  openSheet(body=>{
+    body.appendChild(el("h3",null,"New round"));
+    body.appendChild(el("p","sub","Stroke play. Pick the course, the date and who's out."));
+
+    body.appendChild(el("label","lbl","Course"));
+    const search = el("input","field"); search.type="search"; search.placeholder="Search course or suburb";
+    body.appendChild(search);
+    const sel = el("select","field"); sel.size=1; sel.style.marginTop="8px";
+    body.appendChild(sel);
+    const addLink = el("button","btn ghost full","Course not listed? Add it");
+    addLink.style.marginTop="8px";
+    body.appendChild(addLink);
+    function fillSel(q){
+      sel.innerHTML="";
+      COURSES.filter(c=>!q || c.name.toLowerCase().includes(q) || c.suburb.toLowerCase().includes(q))
+        .slice(0,400).forEach(c=>{
+          const o = el("option",null, c.name+" — "+c.suburb);
+          o.value=c.id; if(c.id===preCourseId) o.selected=true;
+          sel.appendChild(o);
+        });
+      if(!sel.options.length){
+        const o=el("option",null,"No match — add it below"); o.disabled=true; sel.appendChild(o);
+        addLink.textContent = "Add \u201C"+(search.value.trim()||"this course")+"\u201D";
+      } else {
+        addLink.textContent = "Course not listed? Add it";
+      }
+    }
+    fillSel("");
+    search.addEventListener("input", ()=>fillSel(search.value.trim().toLowerCase()));
+    addLink.onclick = ()=>{
+      courseFormSheet({
+        prefill: search.value.trim(),
+        onSaved: c=>{ toast("Saved — "+c.name); newRoundSheet(c.id); },
+        onCancel: ()=>newRoundSheet(preCourseId)
+      });
+    };
+
+    body.appendChild(el("label","lbl","Date played"));
+    const dt = el("input","field"); dt.type="date"; dt.value=todayISO(); body.appendChild(dt);
+
+    body.appendChild(el("label","lbl","How many holes"));
+    let holeChoice = "18";
+    const holeBox = el("div","chips");
+    function fillHoles(){
+      holeBox.innerHTML="";
+      const c = courseById(sel.value);
+      const max = c ? holesFor(c) : 18;
+      const opts = max === 9 ? [["9","9 holes"]]
+                             : [["18","18 holes"],["front","Front 9"],["back","Back 9"]];
+      if (!opts.some(o=>o[0]===holeChoice)) holeChoice = opts[0][0];
+      opts.forEach(([k,lab])=>{
+        const b = el("button","chip",lab);
+        b.setAttribute("aria-pressed", k===holeChoice?"true":"false");
+        b.onclick = ()=>{ holeChoice=k; fillHoles(); };
+        holeBox.appendChild(b);
+      });
+    }
+    body.appendChild(holeBox);
+    fillHoles();
+    sel.addEventListener("change", fillHoles);
+
+    body.appendChild(el("label","lbl","Format"));
+    let fmt = "individual";
+    const fmtBox = el("div");
+    const FORMATS = [
+      ["individual","Individual","Everyone plays their own ball for their own score."],
+      ["fourball","Four-ball (4BBB)","Pairs. Each plays their own ball; the team takes the better score on each hole."],
+      ["ambrose","Ambrose","Pairs play one ball. Everyone tees off, you play on from the best shot. One team score."]
+    ];
+    FORMATS.forEach(([key,title,desc])=>{
+      const row = el("button","fmt-opt");
+      const t = el("div");
+      t.appendChild(el("div","ft",title));
+      t.appendChild(el("div","fd",desc));
+      row.appendChild(t);
+      row.setAttribute("aria-pressed", key===fmt?"true":"false");
+      row.onclick = ()=>{
+        fmt = key;
+        fmtBox.querySelectorAll(".fmt-opt").forEach(x=>x.setAttribute("aria-pressed","false"));
+        row.setAttribute("aria-pressed","true");
+        renderTeams();
+      };
+      fmtBox.appendChild(row);
+    });
+    body.appendChild(fmtBox);
+
+    body.appendChild(el("label","lbl","Who's playing"));
+    const picks = el("div");
+    const teamOf = {};
+    S.players.forEach(p=>{
+      const row = el("label","scorer"); row.style.cursor="pointer";
+      const cb = el("input"); cb.type="checkbox"; cb.value=p.id;
+      cb.style.cssText="width:22px;height:22px;accent-color:var(--fairway)";
+      if (p.isMe) cb.checked=true;
+      cb.onchange = renderTeams;
+      const who = el("div","who"); who.appendChild(el("div","n",p.name+(p.isMe?" (you)":"")));
+      row.appendChild(cb); row.appendChild(who);
+      picks.appendChild(row);
+    });
+    body.appendChild(picks);
+
+    const teamArea = el("div");
+    body.appendChild(teamArea);
+
+    function chosenIds(){
+      return Array.from(picks.querySelectorAll("input:checked")).map(i=>i.value);
+    }
+    function renderTeams(){
+      teamArea.innerHTML="";
+      if (fmt==="individual") return;
+      const ids = chosenIds();
+      if (ids.length < 2){
+        const n = el("p","sec-note"); n.style.marginTop="10px";
+        n.textContent = "Pick at least two players to make teams.";
+        teamArea.appendChild(n); return;
+      }
+      ids.forEach((id,i)=>{ if (teamOf[id]==null) teamOf[id] = Math.floor(i/2)+1; });
+      teamArea.appendChild(el("label","lbl","Teams"));
+      ids.forEach(id=>{
+        const p = S.players.find(x=>x.id===id);
+        const row = el("div","side"); row.style.marginTop="6px";
+        const lr = el("div","lrow"); lr.style.marginTop="0";
+        const nm = el("div","t", p.name); nm.style.color="var(--ink)"; nm.style.fontWeight="600";
+        lr.appendChild(nm);
+        const opts = el("div","opts");
+        [1,2,3,4].forEach(t=>{
+          const b = el("button",null,"Team "+t);
+          b.setAttribute("aria-pressed", teamOf[id]===t?"true":"false");
+          b.onclick = ()=>{ teamOf[id]=t; renderTeams(); };
+          opts.appendChild(b);
+        });
+        lr.appendChild(opts); row.appendChild(lr);
+        teamArea.appendChild(row);
+      });
+    }
+    renderTeams();
+
+    const go = el("button","btn full","Start scoring"); go.style.marginTop="14px";
+    go.onclick = async ()=>{
+      const cid = sel.value; const c = courseById(cid);
+      if (!c){ toast("Pick a course"); return; }
+      const chosen = chosenIds();
+      if (!chosen.length){ toast("Pick at least one player"); return; }
+
+      const fullPars = parsFor(c);
+      let h, offset;
+      if (holeChoice === "18"){ h = 18; offset = 0; }
+      else if (holeChoice === "back"){ h = 9; offset = 9; }
+      else { h = 9; offset = 0; }
+      if (h > fullPars.length){ h = fullPars.length; offset = 0; }
+      const pars = fullPars.slice(offset, offset + h);
+
+      let teams = [];
+      if (fmt !== "individual"){
+        if (chosen.length < 2){ toast("Teams need at least two players"); return; }
+        const byTeam = {};
+        chosen.forEach(id=>{ const t = teamOf[id]||1; (byTeam[t]=byTeam[t]||[]).push(id); });
+        const keys = Object.keys(byTeam);
+        if (keys.length < 2){ toast("Put players in at least two teams"); return; }
+        teams = keys.sort().map(t=>({
+          id:"t_"+uid(),
+          name: byTeam[t].map(id=>(S.players.find(x=>x.id===id)||{}).name).join(" & "),
+          playerIds: byTeam[t].slice(),
+          scores: new Array(h).fill(null)
+        }));
+      }
+
+      const round = {
+        id:"r_"+uid(), courseId:cid, courseName:c.name, date:dt.value||todayISO(),
+        holes:h, pars:pars, holeOffset:offset, format:fmt, teams:teams, ended:false,
+        ld:new Array(h).fill(null), ntp:new Array(h).fill(null),
+        players: chosen.map(pid=>{
+          const p = S.players.find(x=>x.id===pid);
+          return {playerId:pid, name:p.name, scores:new Array(h).fill(null)};
+        })
+      };
+      S.rounds.push(round); await persist();
+      closeSheet(); drawMap(); scoreSheet(round.id, 0);
+    };
+    body.appendChild(go);
+  });
+}
+
+/* =========================================================
+   SCORING — hole by hole
+   ========================================================= */
+function scoreSheet(roundId, hole){
+  const r = S.rounds.find(x=>x.id===roundId); if(!r) return;
+  ensureSide(r);
+  const h = Math.max(0, Math.min(r.holes-1, hole));
+  openSheet(body=>{
+    const head = el("div","hole-head");
+    const left = el("div");
+    left.appendChild(el("div","h-lab","HOLE"));
+    left.appendChild(el("div","h-no", String(holeNo(r,h))+" / "+(r.holes===18?18:nineLabel(r))));
+    head.appendChild(left);
+    const pp = el("div","par-pick");
+    pp.appendChild(el("span",null,"Par"));
+    [3,4,5].forEach(v=>{
+      const b = el("button",null,String(v));
+      b.setAttribute("aria-pressed", r.pars[h]===v?"true":"false");
+      b.onclick = async ()=>{
+        r.pars[h]=v;
+        const c = courseById(r.courseId);
+        if (c){
+          const full = parsFor(c);
+          const idx = h + (r.holeOffset||0);
+          if (idx < full.length){ full[idx] = v; S.parsByCourse[c.id] = full; }
+        }
+        await persist(); scoreSheet(roundId,h);
+      };
+      pp.appendChild(b);
+    });
+    head.appendChild(pp);
+    body.appendChild(head);
+
+    const cname = el("p","sec-note"); cname.style.margin="8px 0 2px";
+    cname.textContent = r.courseName + " · " + fmtDate(r.date) + " · " + nineLabel(r) + " · " + (FORMAT_LABEL[r.format]||"Individual");
+    body.appendChild(cname);
+
+    if (r.format === "ambrose"){
+      r.teams.forEach(t=>{
+        const row = el("div","team-row");
+        const who = el("div","who");
+        who.appendChild(el("div","n",t.name));
+        const done = t.scores.filter(s=>s!=null);
+        const run = done.reduce((a,b)=>a+b,0);
+        const runPar = r.pars.slice(0,r.holes).filter((_,i)=>t.scores[i]!=null).reduce((a,b)=>a+b,0);
+        who.appendChild(el("div","r", done.length ? run+" thru "+done.length+" ("+vsPar(run,runPar)+")" : "no scores yet"));
+        row.appendChild(who);
+        const st = el("div","stepper");
+        const minus = el("button",null,"−");
+        const val = el("div"); val.className="val"+(t.scores[h]==null?" blank":"");
+        val.textContent = t.scores[h]==null ? "–" : String(t.scores[h]);
+        const plus = el("button",null,"+");
+        minus.onclick = async ()=>{
+          const cur = t.scores[h]==null ? r.pars[h] : t.scores[h]-1;
+          t.scores[h] = Math.max(1,cur); await persist(); scoreSheet(roundId,h);
+        };
+        plus.onclick = async ()=>{
+          const cur = t.scores[h]==null ? r.pars[h] : t.scores[h]+1;
+          t.scores[h] = Math.min(20,cur); await persist(); scoreSheet(roundId,h);
+        };
+        st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
+        row.appendChild(st);
+        body.appendChild(row);
+      });
+    } else {
+      r.players.forEach(p=>{
+        const row = el("div","scorer");
+        const who = el("div","who");
+        who.appendChild(el("div","n",p.name));
+        const done = p.scores.filter(s=>s!=null);
+        const run = done.reduce((a,b)=>a+b,0);
+        const runPar = r.pars.slice(0,r.holes).filter((_,i)=>p.scores[i]!=null).reduce((a,b)=>a+b,0);
+        who.appendChild(el("div","r", done.length ? run+" thru "+done.length+" ("+vsPar(run,runPar)+")" : "no scores yet"));
+        row.appendChild(who);
+
+        const st = el("div","stepper");
+        const minus = el("button",null,"−");
+        const val = el("div"); val.className="val"+(p.scores[h]==null?" blank":"");
+        val.textContent = p.scores[h]==null ? "–" : String(p.scores[h]);
+        const plus = el("button",null,"+");
+        minus.onclick = async ()=>{
+          const cur = p.scores[h]==null ? r.pars[h] : p.scores[h]-1;
+          p.scores[h] = Math.max(1, cur);
+          await persist(); scoreSheet(roundId,h);
+        };
+        plus.onclick = async ()=>{
+          const cur = p.scores[h]==null ? r.pars[h] : p.scores[h]+1;
+          p.scores[h] = Math.min(20, cur);
+          await persist(); scoreSheet(roundId,h);
+        };
+        st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
+        row.appendChild(st);
+        body.appendChild(row);
+      });
+      if (r.format === "fourball"){
+        r.teams.forEach(t=>{
+          const s = teamScoreAt(r,t,h);
+          const line = el("div","team-line", t.name + " — hole " + holeNo(r,h) + ": " + (s==null?"–":s));
+          body.appendChild(line);
+        });
+      }
+    }
+
+    if (r.players.length > 1){
+      const side = el("div","side");
+      const hd = el("div","hd");
+      hd.appendChild(el("b",null,"Side game"));
+      const hint = r.pars[h]===3 ? "par 3 — nearest the pin"
+                 : r.pars[h]===5 ? "par 5 — good longest drive hole" : "hole "+holeNo(r,h);
+      hd.appendChild(el("span",null,hint));
+      side.appendChild(hd);
+
+      [["ld","Longest drive"],["ntp","Nearest the pin"]].forEach(([key,label])=>{
+        const row = el("div","lrow");
+        row.appendChild(el("div","t",label));
+        const opts = el("div","opts");
+        const none = el("button", key==="ntp"?"ntp":"", "Not played");
+        none.setAttribute("aria-pressed", r[key][h]==null ? "true":"false");
+        none.onclick = async ()=>{ r[key][h]=null; await persist(); scoreSheet(roundId,h); };
+        opts.appendChild(none);
+        r.players.forEach(p=>{
+          const b = el("button", key==="ntp"?"ntp":"", p.name);
+          b.setAttribute("aria-pressed", r[key][h]===p.playerId ? "true":"false");
+          b.onclick = async ()=>{
+            r[key][h] = r[key][h]===p.playerId ? null : p.playerId;
+            await persist(); scoreSheet(roundId,h);
+          };
+          opts.appendChild(b);
+        });
+        row.appendChild(opts);
+        side.appendChild(row);
+      });
+      body.appendChild(side);
+    }
+
+    const nav = el("div","navrow");
+    const prev = el("button","btn quiet","Previous");
+    prev.disabled = h===0;
+    prev.onclick = ()=>scoreSheet(roundId,h-1);
+    nav.appendChild(prev);
+    if (h < r.holes-1){
+      const next = el("button","btn","Next hole");
+      next.onclick = ()=>scoreSheet(roundId,h+1);
+      nav.appendChild(next);
+    } else {
+      const fin = el("button","btn","Finish round");
+      fin.onclick = ()=>{ renderAll(); roundSheet(roundId); };
+      nav.appendChild(fin);
+    }
+    body.appendChild(nav);
+
+    const cardBtn = el("button","btn ghost full","See the card");
+    cardBtn.style.marginTop="8px";
+    cardBtn.onclick = ()=>{ renderAll(); roundSheet(roundId); };
+    body.appendChild(cardBtn);
+
+    if (!allDone(r) && !r.ended){
+      const endBtn = el("button","btn quiet full","End round here ("+playedHoles(r)+" holes played)");
+      endBtn.style.marginTop="8px";
+      endBtn.onclick = async ()=>{
+        r.ended = true; await persist();
+        renderAll(); drawMap(); roundSheet(roundId);
+        toast("Round closed");
+      };
+      body.appendChild(endBtn);
+    }
+  });
+}
+
+/* =========================================================
+   ROUND VIEW + SCORECARD
+   ========================================================= */
+function markClass(score,par){
+  if (score==null) return "";
+  const d = score-par;
+  if (d<=-2) return "mark eagle";
+  if (d===-1) return "mark birdie";
+  if (d===1) return "mark bogey";
+  if (d>=2) return "mark dbl";
+  return "mark";
+}
+function scorecardTable(r){
+  const wrap = el("div","card-scroll");
+  const t = el("table","card");
+  const nine = r.holes===18;
+  const thead = el("thead"); const hr = el("tr");
+  const hh = el("th","side","Hole"); hr.appendChild(hh);
+  for (let i=0;i<r.holes;i++){
+    if (nine && i===9){ const o=el("th",null,"OUT"); hr.appendChild(o); }
+    hr.appendChild(el("th",null,String(holeNo(r,i))));
+  }
+  if (nine) hr.appendChild(el("th",null,"IN"));
+  hr.appendChild(el("th",null,"TOT"));
+  thead.appendChild(hr); t.appendChild(thead);
+
+  const tb = el("tbody");
+  const pr = el("tr","par");
+  pr.appendChild(el("th","side","Par"));
+  let outP=0,inP=0;
+  for (let i=0;i<r.holes;i++){
+    if (nine && i===9){ pr.appendChild(el("td",null,String(outP))); }
+    pr.appendChild(el("td",null,String(r.pars[i])));
+    if (i<9) outP+=r.pars[i]; else inP+=r.pars[i];
+  }
+  if (nine) pr.appendChild(el("td",null,String(inP)));
+  pr.appendChild(el("td","tot", String(r.pars.slice(0,r.holes).reduce((a,b)=>a+b,0))));
+  tb.appendChild(pr);
+
+  if (hasOwnBall(r)){
+    r.players.forEach(p=>{
+      const tr = el("tr");
+      tr.appendChild(el("th","side",p.name));
+      let out=0,inn=0,tot=0;
+      for (let i=0;i<r.holes;i++){
+        if (nine && i===9) tr.appendChild(el("td",null, out?String(out):"–"));
+        const td = el("td");
+        if (p.scores[i]!=null){
+          const m = el("span", markClass(p.scores[i], r.pars[i]), String(p.scores[i]));
+          td.appendChild(m);
+          if (i<9) out+=p.scores[i]; else inn+=p.scores[i];
+          tot+=p.scores[i];
+        } else td.textContent="–";
+        tr.appendChild(td);
+      }
+      if (nine) tr.appendChild(el("td",null, inn?String(inn):"–"));
+      tr.appendChild(el("td","tot", tot?String(tot):"–"));
+      tb.appendChild(tr);
+    });
+  }
+  if (isTeamRound(r)){
+    r.teams.forEach(t=>{
+      const tr = el("tr","team");
+      tr.appendChild(el("th","side",t.name));
+      let out=0,inn=0,tot=0;
+      for (let i=0;i<r.holes;i++){
+        if (nine && i===9) tr.appendChild(el("td",null, out?String(out):"–"));
+        const td = el("td");
+        const s = teamScoreAt(r,t,i);
+        if (s!=null){
+          const m = el("span", markClass(s, r.pars[i]), String(s));
+          td.appendChild(m);
+          if (i<9) out+=s; else inn+=s;
+          tot+=s;
+        } else td.textContent="–";
+        tr.appendChild(td);
+      }
+      if (nine) tr.appendChild(el("td",null, inn?String(inn):"–"));
+      tr.appendChild(el("td","tot", tot?String(tot):"–"));
+      tb.appendChild(tr);
+    });
+  }
+  t.appendChild(tb); wrap.appendChild(t); return wrap;
+}
+function ensureSide(r){
+  if (!r.format) r.format = "individual";
+  if (r.holeOffset == null) r.holeOffset = 0;
+  if (!Array.isArray(r.teams)) r.teams = [];
+  r.teams.forEach(t=>{ if(!Array.isArray(t.scores) || t.scores.length!==r.holes) t.scores = new Array(r.holes).fill(null); });
+  if (!Array.isArray(r.ld) || r.ld.length!==r.holes) r.ld = new Array(r.holes).fill(null);
+  if (!Array.isArray(r.ntp) || r.ntp.length!==r.holes) r.ntp = new Array(r.holes).fill(null);
+  return r;
+}
+const FORMAT_LABEL = {individual:"Individual", fourball:"Four-ball (4BBB)", ambrose:"Ambrose"};
+function isTeamRound(r){ return r.format && r.format!=="individual" && (r.teams||[]).length; }
+function hasOwnBall(r){ return !r.format || r.format!=="ambrose"; }
+function teamScoreAt(r, team, i){
+  if (r.format==="ambrose") return team.scores[i];
+  const vals = team.playerIds
+    .map(pid=>{ const p = r.players.find(x=>x.playerId===pid); return p?p.scores[i]:null; })
+    .filter(v=>v!=null);
+  return vals.length ? Math.min.apply(null, vals) : null;
+}
+function teamTotals(r){
+  return (r.teams||[]).map(t=>{
+    let total=0, par=0, done=0;
+    for (let i=0;i<r.holes;i++){
+      const s = teamScoreAt(r,t,i);
+      if (s!=null){ total+=s; par+=r.pars[i]; done++; }
+    }
+    return {id:t.id, name:t.name, total, par, holesDone:done, complete:done===r.holes};
+  });
+}
+function sideWins(r){
+  const t = {};
+  r.players.forEach(p=>t[p.playerId]={name:p.name, ld:0, ntp:0});
+  ["ld","ntp"].forEach(k=>{
+    (r[k]||[]).forEach(pid=>{ if(pid && t[pid]) t[pid][k]++; });
+  });
+  return t;
+}
+function sideList(r){
+  const out = [];
+  ["ld","ntp"].forEach(k=>{
+    (r[k]||[]).forEach((pid,i)=>{
+      if (!pid) return;
+      const p = r.players.find(x=>x.playerId===pid);
+      out.push({hole:holeNo(r,i), kind:k, name: p?p.name:"—"});
+    });
+  });
+  return out.sort((a,b)=>a.hole-b.hole);
+}
+function holeNo(r,i){ return i + 1 + (r.holeOffset||0); }
+function nineLabel(r){
+  if (r.holes === 18) return "18 holes";
+  return (r.holeOffset||0) >= 9 ? "Back 9" : "Front 9";
+}
+function playedHoles(r){
+  let n=0;
+  for (let i=0;i<r.holes;i++){
+    if (r.format==="ambrose"){ if (r.teams.some(t=>t.scores[i]!=null)) n++; }
+    else if (r.players.some(p=>p.scores[i]!=null)) n++;
+  }
+  return n;
+}
+function roundStatus(r){
+  if (allDone(r)) return "";
+  if (r.ended) return "ended after "+playedHoles(r)+" of "+r.holes;
+  return "in progress";
+}
+function firstUnscored(r){
+  for (let i=0;i<r.holes;i++){
+    if (r.format==="ambrose"){
+      if (r.teams.some(t=>t.scores[i]==null)) return i;
+    } else if (r.players.some(p=>p.scores[i]==null)) return i;
+  }
+  return 0;
+}
+function allDone(r){
+  if (r.format==="ambrose") return r.teams.every(t=>t.scores.every(s=>s!=null));
+  return r.players.every(p=>p.scores.every(s=>s!=null));
+}
+function roundTotals(r){
+  return r.players.map(p=>{
+    const done = p.scores.filter(s=>s!=null);
+    const total = done.reduce((a,b)=>a+b,0);
+    const par = r.pars.slice(0,r.holes).filter((_,i)=>p.scores[i]!=null).reduce((a,b)=>a+b,0);
+    return {name:p.name, playerId:p.playerId, total, par, complete: done.length===r.holes, holesDone:done.length};
+  });
+}
+function roundSheet(id){
+  const r = S.rounds.find(x=>x.id===id); if(!r) return;
+  ensureSide(r);
+  openSheet(body=>{
+    body.appendChild(el("h3",null,r.courseName));
+    const subline = el("p","sub");
+    subline.appendChild(document.createTextNode(fmtDate(r.date)+" · "+nineLabel(r)+" "));
+    subline.appendChild(el("span","fmt-tag", FORMAT_LABEL[r.format]||"Individual"));
+    const st = roundStatus(r);
+    if (st){
+      const tag = el("span","fmt-tag", st);
+      tag.style.cssText += r.ended ? "background:var(--line-soft)" : "";
+      subline.appendChild(document.createTextNode(" "));
+      subline.appendChild(tag);
+    }
+    body.appendChild(subline);
+    body.appendChild(scorecardTable(r));
+
+    const g = el("div","stat-grid"); g.style.marginTop="10px";
+    const cards = isTeamRound(r) ? teamTotals(r) : roundTotals(r);
+    cards.forEach(t=>{
+      const s = el("div","stat");
+      s.appendChild(el("div","k", t.name + (t.complete?"":" · "+t.holesDone+"/"+r.holes)));
+      const v = el("div","v", t.total?String(t.total):"—");
+      if (t.total){ const sm=el("small",null," "+vsPar(t.total,t.par)); v.appendChild(sm); }
+      s.appendChild(v); g.appendChild(s);
+    });
+    body.appendChild(g);
+
+    if (isTeamRound(r)){
+      const done = cards.filter(t=>t.complete);
+      if (done.length>1){
+        const low = done.reduce((a,b)=>b.total-b.par < a.total-a.par ? b : a);
+        const wp = el("p","sec-note"); wp.style.marginTop="6px";
+        wp.textContent = "Winning team: "+low.name+" on "+low.total+" ("+vsPar(low.total,low.par)+")";
+        body.appendChild(wp);
+      }
+    }
+
+    const cont = el("button","btn full", allDone(r)?"Edit scores":(r.ended?"Add more scores":"Continue scoring"));
+    cont.style.marginTop="12px";
+    const firstBlank = firstUnscored(r);
+    cont.onclick = ()=>scoreSheet(r.id, firstBlank);
+    body.appendChild(cont);
+
+    if (!allDone(r)){
+      if (r.ended){
+        const re = el("button","btn ghost full","Reopen — mark as still in progress");
+        re.style.marginTop="8px";
+        re.onclick = async ()=>{ r.ended=false; await persist(); renderAll(); roundSheet(id); };
+        body.appendChild(re);
+      } else {
+        const end = el("button","btn quiet full","End round here ("+playedHoles(r)+" of "+r.holes+" played)");
+        end.style.marginTop="8px";
+        end.onclick = async ()=>{
+          r.ended = true; await persist(); renderAll(); drawMap(); roundSheet(id);
+          toast("Round closed");
+        };
+        body.appendChild(end);
+      }
+    }
+
+    const sl = sideList(r);
+    if (sl.length){
+      body.appendChild(el("label","lbl","Side games"));
+      const ul = el("ul","list");
+      sl.forEach(s=>{
+        const li = el("li"); const row = el("div","sg-li");
+        row.appendChild(el("span","h","Hole "+s.hole));
+        row.appendChild(el("span","w",s.name));
+        row.appendChild(el("span","badge "+s.kind, s.kind==="ld"?"Longest drive":"Nearest the pin"));
+        li.appendChild(row); ul.appendChild(li);
+      });
+      body.appendChild(ul);
+      const w = sideWins(r);
+      const tally = Object.values(w).filter(x=>x.ld||x.ntp)
+        .map(x=>x.name+" "+[x.ld?x.ld+" LD":null, x.ntp?x.ntp+" NTP":null].filter(Boolean).join(", "))
+        .join(" · ");
+      const tp = el("p","sec-note"); tp.style.marginTop="6px"; tp.textContent = tally;
+      body.appendChild(tp);
+    }
+
+    body.appendChild(el("label","lbl","Notes"));
+    const nt = el("textarea","field"); nt.rows=2; nt.value=r.notes||"";
+    nt.placeholder="Weather, wagers, that one shot";
+    nt.onchange = async ()=>{ r.notes=nt.value; await persist(); };
+    body.appendChild(nt);
+
+    const del = el("button","btn danger full","Delete this round"); del.style.marginTop="14px";
+    del.onclick = async ()=>{
+      S.rounds = S.rounds.filter(x=>x.id!==id);
+      await persist(); closeSheet(); renderAll(); drawMap(); toast("Round deleted");
+    };
+    body.appendChild(del);
+  });
+}
+function roundListItem(r){
+  const li = el("li"); const b = el("button","course-btn round-li");
+  b.style.display="block";
+  const top = el("div","top");
+  const cspan = el("span","c", r.courseName);
+  if (r.holes === 9){
+    cspan.appendChild(el("span","fmt-tag", nineLabel(r)));
+  }
+  if (r.format && r.format!=="individual"){
+    cspan.appendChild(el("span","fmt-tag", r.format==="ambrose"?"Ambrose":"4BBB"));
+  }
+  top.appendChild(cspan);
+  top.appendChild(el("span","d", fmtDate(r.date)));
+  b.appendChild(top);
+  const sc = el("div","scores");
+  const wins = sideWins(r);
+  const entries = isTeamRound(r) ? teamTotals(r) : roundTotals(r);
+  entries.forEach(t=>{
+    const s = el("span");
+    const strong = el("b",null, t.total?String(t.total):"–");
+    s.appendChild(document.createTextNode(t.name+" "));
+    s.appendChild(strong);
+    if (t.total){
+      const d = t.total-t.par;
+      const v = el("span","vs"+(d<0?" under":"")," "+vsPar(t.total,t.par));
+      s.appendChild(v);
+    }
+    const w = t.playerId ? wins[t.playerId] : null;
+    if (w && w.ld) s.appendChild(el("span","badge ld", w.ld+"× LD"));
+    if (w && w.ntp) s.appendChild(el("span","badge ntp", w.ntp+"× NTP"));
+    sc.appendChild(s);
+  });
+  const status = roundStatus(r);
+  if (status){
+    const st = el("span","vs", status);
+    st.style.cssText += ";width:100%;font-style:italic";
+    sc.appendChild(st);
+  }
+  b.appendChild(sc);
+  b.onclick = ()=>roundSheet(r.id);
+  li.appendChild(b); return li;
+}
+function renderRounds(){
+  const host = $("#roundList"); host.innerHTML="";
+  if (!S.rounds.length){
+    const e = el("div","empty");
+    e.appendChild(el("strong",null,"No rounds yet"));
+    e.appendChild(document.createTextNode("Start one from here, or tap a course on the map."));
+    host.appendChild(e); return;
+  }
+  const ul = el("ul","list");
+  S.rounds.slice().sort((a,b)=>b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
+    .forEach(r=>ul.appendChild(roundListItem(r)));
+  host.appendChild(ul);
+}
+$("#newRound").onclick = ()=>newRoundSheet(null);
+
+/* =========================================================
+   STATS
+   ========================================================= */
+function bestAtCourse(courseId, playerId){
+  const me = playerId || (S.players.find(p=>p.isMe)||{}).id;
+  let best=null;
+  S.rounds.filter(r=>r.courseId===courseId).forEach(r=>{
+    r.players.forEach(p=>{
+      if (me && p.playerId!==me) return;
+      if (p.scores.some(s=>s==null)) return;
+      const total = p.scores.reduce((a,b)=>a+b,0);
+      const par = r.pars.slice(0,r.holes).reduce((a,b)=>a+b,0);
+      if (!best || total-par < best.total-best.par) best={total,par,date:r.date,holes:r.holes};
+    });
+  });
+  return best;
+}
+/* =========================================================
+   TREND — are you actually getting better?
+   ========================================================= */
+let trendMode = null;
+function svgEl(tag, attrs){
+  const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+function rollingAvg(vals, win){
+  return vals.map((_,i)=>{
+    const from = Math.max(0, i-win+1);
+    const slice = vals.slice(from, i+1);
+    return slice.reduce((a,b)=>a+b,0)/slice.length;
+  });
+}
+function renderTrend(host, entries){
+  const done = entries.filter(e=>e.complete)
+    .sort((a,b)=> a.r.date.localeCompare(b.r.date) || a.r.id.localeCompare(b.r.id));
+
+  host.appendChild(el("label","lbl","Are you improving?"));
+
+  if (done.length < 3){
+    const n = el("div","empty");
+    n.appendChild(el("strong",null,"Not enough rounds yet"));
+    n.appendChild(document.createTextNode("Three finished rounds and the trend line appears here."));
+    host.appendChild(n);
+    return;
+  }
+
+  const n18 = done.filter(e=>e.r.holes===18);
+  const n9  = done.filter(e=>e.r.holes===9);
+  const modes = [];
+  if (n18.length>=3) modes.push(["18","18 holes"]);
+  if (n9.length>=3)  modes.push(["9","9 holes"]);
+  modes.push(["all","All, per hole"]);
+  if (!trendMode || !modes.some(m=>m[0]===trendMode)) trendMode = modes[0][0];
+
+  if (modes.length>1){
+    const chips = el("div","chips");
+    modes.forEach(([k,lab])=>{
+      const b = el("button","chip",lab);
+      b.setAttribute("aria-pressed", k===trendMode?"true":"false");
+      b.onclick = ()=>{ trendMode = k; renderStats(); };
+      chips.appendChild(b);
+    });
+    host.appendChild(chips);
+  }
+
+  let pts;
+  if (trendMode==="18") pts = n18.map(e=>({e, v:e.diff}));
+  else if (trendMode==="9") pts = n9.map(e=>({e, v:e.diff}));
+  else pts = done.map(e=>({e, v:e.diff/e.r.holes}));
+  const perHole = trendMode==="all";
+
+  if (pts.length < 3){
+    host.appendChild(el("p","sec-note","Not enough finished rounds in this view yet."));
+    return;
+  }
+
+  const vals = pts.map(p=>p.v);
+  const avg = rollingAvg(vals, Math.min(5, Math.max(3, Math.round(vals.length/3))));
+
+  // scale
+  const W=320, H=190, L=30, Rp=8, T=12, B=26;
+  const lo = Math.min(0, Math.min.apply(null, vals));
+  const hi = Math.max(0, Math.max.apply(null, vals));
+  const pad = (hi-lo)*0.15 || 1;
+  const y0 = lo-pad, y1 = hi+pad;
+  const X = i => L + (pts.length===1 ? (W-L-Rp)/2 : i*(W-L-Rp)/(pts.length-1));
+  const Y = v => T + (y1-v)/(y1-y0) * (H-T-B);
+
+  const card = el("div","chart-card");
+  const svg = svgEl("svg",{viewBox:"0 0 "+W+" "+H, role:"img",
+    "aria-label":"Scores against par over time"});
+
+  // gridlines + labels
+  const ticks = [y1, (y1+y0)/2, y0];
+  ticks.forEach(t=>{
+    svg.appendChild(svgEl("line",{x1:L, x2:W-Rp, y1:Y(t), y2:Y(t), class:"gridline"}));
+    const lab = svgEl("text",{x:L-4, y:Y(t)+3, class:"axis", "text-anchor":"end"});
+    lab.textContent = (perHole ? t.toFixed(1) : Math.round(t));
+    svg.appendChild(lab);
+  });
+  // par line
+  svg.appendChild(svgEl("line",{x1:L, x2:W-Rp, y1:Y(0), y2:Y(0), class:"zeroline"}));
+  const parLab = svgEl("text",{x:W-Rp, y:Y(0)-4, class:"axis", "text-anchor":"end"});
+  parLab.textContent = "par";
+  svg.appendChild(parLab);
+
+  // lines
+  const toPath = arr => arr.map((v,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)).join(" ");
+  svg.appendChild(svgEl("path",{d:toPath(vals), class:"raw"}));
+  svg.appendChild(svgEl("path",{d:toPath(avg), class:"avg"}));
+
+  // points
+  const bestV = Math.min.apply(null, vals);
+  const readout = el("div","readout");
+  function say(i){
+    const p = pts[i];
+    const d = p.e.r.holes===18 ? p.e.diff : p.e.diff;
+    readout.innerHTML="";
+    readout.appendChild(el("b",null, p.e.r.courseName));
+    readout.appendChild(document.createTextNode(" — "+p.e.total+" ("+vsPar(p.e.total,p.e.par)+")"));
+    readout.appendChild(el("div","muted", fmtDate(p.e.r.date)+" · "+p.e.r.holes+" holes · "+(FORMAT_LABEL[p.e.r.format]||"Individual")));
+  }
+  pts.forEach((p,i)=>{
+    svg.appendChild(svgEl("circle",{cx:X(i), cy:Y(p.v), r:3.2,
+      class:"pt"+(p.v===bestV?" best":"")}));
+    const hit = svgEl("circle",{cx:X(i), cy:Y(p.v), r:11, class:"hit"});
+    hit.addEventListener("click", ()=>say(i));
+    svg.appendChild(hit);
+  });
+
+  // x labels
+  const first = svgEl("text",{x:L, y:H-8, class:"axis"});
+  first.textContent = fmtDate(pts[0].e.r.date).replace(/ \d{4}$/,"");
+  svg.appendChild(first);
+  const last = svgEl("text",{x:W-Rp, y:H-8, class:"axis", "text-anchor":"end"});
+  last.textContent = fmtDate(pts[pts.length-1].e.r.date).replace(/ \d{4}$/,"");
+  svg.appendChild(last);
+
+  card.appendChild(svg);
+  say(pts.length-1);
+  card.appendChild(readout);
+  host.appendChild(card);
+
+  const legend = el("p","sec-note");
+  legend.style.marginTop="6px";
+  legend.textContent = "Grey line is each round, green is your rolling average. Lower is better — below the dashed line is under par. Tap a point for details.";
+  host.appendChild(legend);
+
+  // plain-English verdict
+  const k = Math.max(3, Math.floor(pts.length/3));
+  const early = vals.slice(0,k).reduce((a,b)=>a+b,0)/k;
+  const late  = vals.slice(-k).reduce((a,b)=>a+b,0)/k;
+  const delta = early - late;                 // positive means improving
+  const unit = perHole ? " strokes a hole" : " strokes";
+  const show = perHole ? Math.abs(delta).toFixed(2) : Math.abs(delta).toFixed(1);
+  const note = el("div","trend-note"+(delta < -0.2 ? " worse":""));
+  if (Math.abs(delta) < (perHole ? 0.05 : 0.8)){
+    note.textContent = "Holding steady. Your last "+k+" rounds are within a stroke of your first "+k+" — consistent, if not yet improving.";
+  } else if (delta > 0){
+    note.appendChild(document.createTextNode("Trending down, which is the good direction. Your last "+k+" rounds average "));
+    note.appendChild(el("b",null, show+unit));
+    note.appendChild(document.createTextNode(" better than your first "+k+"."));
+  } else {
+    note.appendChild(document.createTextNode("Going the wrong way for now. Your last "+k+" rounds average "));
+    note.appendChild(el("b",null, show+unit));
+    note.appendChild(document.createTextNode(" worse than your first "+k+". Small sample, though."));
+  }
+  host.appendChild(note);
+}
+
+let statPlayerId = null;
+function renderStats(){
+  const chips = $("#statPlayers"); chips.innerHTML="";
+  if (!S.players.length){
+    $("#statBody").innerHTML="";
+    const e = el("div","empty");
+    e.appendChild(el("strong",null,"Nothing to count yet"));
+    e.appendChild(document.createTextNode("Add players and record a round."));
+    $("#statBody").appendChild(e); return;
+  }
+  if (!statPlayerId || !S.players.some(p=>p.id===statPlayerId)){
+    statPlayerId = (S.players.find(p=>p.isMe)||S.players[0]).id;
+  }
+  S.players.forEach(p=>{
+    const b = el("button","chip", p.name);
+    b.setAttribute("aria-pressed", p.id===statPlayerId?"true":"false");
+    b.onclick = ()=>{ statPlayerId=p.id; renderStats(); };
+    chips.appendChild(b);
+  });
+
+  const host = $("#statBody"); host.innerHTML="";
+  const entries = [];
+  S.rounds.forEach(r=>{
+    const p = r.players.find(x=>x.playerId===statPlayerId);
+    if (!p) return;
+    const done = p.scores.filter(s=>s!=null);
+    if (!done.length) return;
+    const total = done.reduce((a,b)=>a+b,0);
+    const par = r.pars.slice(0,r.holes).filter((_,i)=>p.scores[i]!=null).reduce((a,b)=>a+b,0);
+    entries.push({r, total, par, complete: done.length===r.holes, diff: total-par});
+  });
+
+  const roundsIn = S.rounds.filter(r=>r.players.some(x=>x.playerId===statPlayerId));
+  let teamWins=0, teamRounds=0;
+  roundsIn.forEach(r=>{
+    if (!isTeamRound(r)) return;
+    const mine = r.teams.find(t=>t.playerIds.indexOf(statPlayerId)>-1);
+    if (!mine) return;
+    const tt = teamTotals(r).filter(t=>t.complete);
+    if (tt.length<2) return;
+    teamRounds++;
+    const low = tt.reduce((a,b)=> (b.total-b.par) < (a.total-a.par) ? b : a);
+    if (low.id===mine.id) teamWins++;
+  });
+
+  if (!roundsIn.length){
+    const e = el("div","empty");
+    e.appendChild(el("strong",null,"No rounds for this player"));
+    e.appendChild(document.createTextNode("Record a round and the numbers appear here."));
+    host.appendChild(e); return;
+  }
+
+  const full = entries.filter(e=>e.complete);
+  const eighteens = full.filter(e=>e.r.holes===18);
+  const g = el("div","stat-grid");
+  const add=(k,v,sm)=>{
+    const s=el("div","stat"); s.appendChild(el("div","k",k));
+    const vv=el("div","v",v); if(sm){const m=el("small",null," "+sm); vv.appendChild(m);} s.appendChild(vv); g.appendChild(s);
+  };
+  add("Rounds played", String(roundsIn.length));
+  add("Courses played", String(new Set(roundsIn.map(r=>r.courseId)).size));
+  if (eighteens.length){
+    const best = eighteens.reduce((a,b)=>b.diff<a.diff?b:a);
+    add("Best 18", String(best.total), vsPar(best.total,best.par));
+    const avg = eighteens.reduce((a,b)=>a+b.total,0)/eighteens.length;
+    add("Average 18", avg.toFixed(1));
+  } else if (full.length){
+    const best = full.reduce((a,b)=>b.diff<a.diff?b:a);
+    add("Best round", String(best.total), vsPar(best.total,best.par));
+    add("Rounds finished", String(full.length));
+  }
+  if (teamRounds) add("Team wins", teamWins+"/"+teamRounds);
+  host.appendChild(g);
+
+  renderTrend(host, entries);
+
+  // side games
+  let myLD=0, myNTP=0;
+  S.rounds.forEach(r=>{
+    (r.ld||[]).forEach(pid=>{ if(pid===statPlayerId) myLD++; });
+    (r.ntp||[]).forEach(pid=>{ if(pid===statPlayerId) myNTP++; });
+  });
+  const g2 = el("div","stat-grid"); g2.style.marginTop="8px";
+  const sLD = el("div","stat"); sLD.appendChild(el("div","k","Longest drives won"));
+  sLD.appendChild(el("div","v", String(myLD))); g2.appendChild(sLD);
+  const sNT = el("div","stat"); sNT.appendChild(el("div","k","Nearest the pin won"));
+  sNT.appendChild(el("div","v", String(myNTP))); g2.appendChild(sNT);
+  host.appendChild(g2);
+
+  // side-game ladder across everyone
+  const ladder = {};
+  S.players.forEach(p=>ladder[p.id]={name:p.name, ld:0, ntp:0});
+  S.rounds.forEach(r=>{
+    ["ld","ntp"].forEach(k=>(r[k]||[]).forEach(pid=>{
+      if (!pid) return;
+      if (!ladder[pid]){
+        const rp = r.players.find(x=>x.playerId===pid);
+        ladder[pid] = {name: rp?rp.name:"—", ld:0, ntp:0};
+      }
+      ladder[pid][k]++;
+    }));
+  });
+  const board = Object.values(ladder).filter(x=>x.ld||x.ntp)
+    .sort((a,b)=>(b.ld+b.ntp)-(a.ld+a.ntp));
+  if (board.length){
+    const sec = el("div"); sec.style.marginTop="16px";
+    sec.appendChild(el("label","lbl","Side game ladder"));
+    const ul = el("ul","list");
+    board.forEach(x=>{
+      const li = el("li"); const row = el("div","sg-li");
+      const nm = el("span","w",x.name); nm.style.flex="1";
+      row.appendChild(nm);
+      if (x.ld) row.appendChild(el("span","badge ld", x.ld+"× longest drive"));
+      if (x.ntp) row.appendChild(el("span","badge ntp", x.ntp+"× nearest"));
+      li.appendChild(row); ul.appendChild(li);
+    });
+    sec.appendChild(ul); host.appendChild(sec);
+  }
+
+  // scoring spread
+  let birdies=0, pars=0, bogeys=0, worse=0, eagles=0;
+  entries.forEach(e=>{
+    const p = e.r.players.find(x=>x.playerId===statPlayerId);
+    p.scores.forEach((s,i)=>{
+      if (s==null) return;
+      const d = s-e.r.pars[i];
+      if (d<=-2) eagles++; else if (d===-1) birdies++; else if (d===0) pars++;
+      else if (d===1) bogeys++; else worse++;
+    });
+  });
+  const spread = el("div"); spread.style.marginTop="14px";
+  spread.appendChild(el("label","lbl","Every hole you've played"));
+  const bars = el("div");
+  const totalHoles = eagles+birdies+pars+bogeys+worse;
+  [["Eagle or better",eagles,"#B23A24"],["Birdies",birdies,"#C4603F"],["Pars",pars,"#3B7A4E"],
+   ["Bogeys",bogeys,"#8A9A82"],["Double or worse",worse,"#C0B79E"]].forEach(([lab,n,col])=>{
+    if (!n && lab==="Eagle or better") return;
+    const row = el("div"); row.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:6px";
+    const l = el("div",null,lab); l.style.cssText="flex:0 0 118px;font-size:13px;color:var(--muted)";
+    const track = el("div"); track.style.cssText="flex:1;height:12px;background:var(--line-soft);border-radius:6px;overflow:hidden";
+    const fill = el("div"); fill.style.cssText=`height:100%;background:${col};width:${totalHoles?(n/totalHoles*100):0}%`;
+    track.appendChild(fill);
+    const v = el("div","num",String(n)); v.style.cssText="flex:0 0 34px;text-align:right;font-size:13px;font-weight:600";
+    row.appendChild(l); row.appendChild(track); row.appendChild(v);
+    bars.appendChild(row);
+  });
+  spread.appendChild(bars);
+  if (totalHoles) host.appendChild(spread);
+  if (roundsIn.some(r=>r.format==="ambrose")){
+    const n = el("p","sec-note"); n.style.marginTop="10px";
+    n.textContent = "Ambrose rounds count towards rounds played and team wins, but not personal scoring — there's no individual ball to score.";
+    host.appendChild(n);
+  }
+
+  // best per course
+  const byCourse = {};
+  entries.filter(e=>e.complete).forEach(e=>{
+    const k = e.r.courseId;
+    if (!byCourse[k] || e.diff < byCourse[k].diff) byCourse[k]=e;
+  });
+  const keys = Object.keys(byCourse);
+  if (keys.length){
+    const sec = el("div"); sec.style.marginTop="16px";
+    sec.appendChild(el("label","lbl","Best at each course"));
+    const ul = el("ul","list");
+    keys.map(k=>byCourse[k]).sort((a,b)=>a.diff-b.diff).forEach(e=>{
+      const li = el("li"); const b = el("button","course-btn");
+      const g2 = el("div","grow");
+      g2.appendChild(el("div","nm", e.r.courseName));
+      g2.appendChild(el("div","mt", fmtDate(e.r.date)+" · "+e.r.holes+" holes"));
+      b.appendChild(g2);
+      const sp = el("span","played", e.total+" ("+vsPar(e.total,e.par)+")");
+      b.appendChild(sp);
+      b.onclick = ()=>roundSheet(e.r.id);
+      li.appendChild(b); ul.appendChild(li);
+    });
+    sec.appendChild(ul); host.appendChild(sec);
+  }
+}
+
+/* =========================================================
+   BACKUP
+   ========================================================= */
+$("#exportBtn").onclick = ()=>{
+  const blob = new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "golf-card-backup-"+todayISO()+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  toast("Backup downloaded");
+};
+$("#importBtn").onclick = ()=>$("#importFile").click();
+$("#importFile").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = async ()=>{
+    try{
+      const d = JSON.parse(rd.result);
+      if (!d || !Array.isArray(d.rounds)) throw 0;
+      S = Object.assign({players:[],rounds:[],customCourses:[],parsByCourse:{},holesByCourse:{},coordFix:{}}, d);
+      await persist(); rebuildCourses(); renderAll(); drawMap();
+      toast("Backup restored");
+    }catch(err){ toast("That file isn't a Golf Card backup"); }
+  };
+  rd.readAsText(f);
+  e.target.value="";
+};
+
+/* =========================================================
+   COURSE MAP — golf features pulled live from OpenStreetMap
+   ========================================================= */
+const OSM_CACHE = {};
+let CMAP = null;
+
+const GOLF_STYLE = {
+  rough:               {fill:"#CBDEC0", stroke:"#B5CCA8", rank:0},
+  driving_range:       {fill:"#D7E6CC", stroke:"#C3D6B6", rank:1},
+  fairway:             {fill:"#AFD79C", stroke:"#96C481", rank:2},
+  water_hazard:        {fill:"#8FC4DC", stroke:"#5F9DBE", rank:3},
+  lateral_water_hazard:{fill:"#8FC4DC", stroke:"#5F9DBE", rank:3},
+  bunker:              {fill:"#EFE2B6", stroke:"#D6C28A", rank:4},
+  green:               {fill:"#5FB56A", stroke:"#40904B", rank:5},
+  tee:                 {fill:"#84C489", stroke:"#5E9E64", rank:6},
+  path:                {line:"#A8785A", rank:7},
+  cartpath:            {line:"#A8785A", rank:7}
+};
+const LEGEND = [
+  ["Fairway","#AFD79C"],["Green","#5FB56A"],["Tee","#84C489"],
+  ["Bunker","#EFE2B6"],["Water","#8FC4DC"],["Cart path","#A8785A"]
+];
+
+function hav(a,b){
+  const R=6371000, t=Math.PI/180;
+  const dLat=(b[0]-a[0])*t, dLng=(b[1]-a[1])*t;
+  const s=Math.sin(dLat/2)**2 + Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function lineLength(ll){
+  let d=0; for(let i=1;i<ll.length;i++) d+=hav(ll[i-1],ll[i]); return d;
+}
+async function overpass(query){
+  const eps = ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+  let err;
+  for (const u of eps){
+    try{
+      const res = await fetch(u,{
+        method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:"data="+encodeURIComponent(query)
+      });
+      if (!res.ok) throw new Error("HTTP "+res.status);
+      return await res.json();
+    }catch(e){ err=e; }
+  }
+  throw err || new Error("Overpass unreachable");
+}
+function geomOf(e){
+  if (e.geometry && e.geometry.length) return e.geometry.map(p=>[p.lat,p.lon]);
+  if (e.members){
+    const outs = e.members.filter(m=>m.geometry && m.geometry.length && m.role!=="inner");
+    if (!outs.length) return null;
+    return outs.reduce((a,m)=>a.concat(m.geometry.map(p=>[p.lat,p.lon])),[]);
+  }
+  return null;
+}
+function bboxOf(ll){
+  let s=90,w=180,n=-90,e=-180;
+  ll.forEach(p=>{ s=Math.min(s,p[0]); n=Math.max(n,p[0]); w=Math.min(w,p[1]); e=Math.max(e,p[1]); });
+  return [s,w,n,e];
+}
+function centroidOf(ll){
+  let la=0,lo=0; ll.forEach(p=>{la+=p[0];lo+=p[1];}); return [la/ll.length, lo/ll.length];
+}
+function norm(s){ return (s||"").toLowerCase().replace(/[^a-z0-9]/g,""); }
+
+async function loadCourseFeatures(c){
+  if (OSM_CACHE[c.id]) return OSM_CACHE[c.id];
+  const q1 = `[out:json][timeout:30];(way["leisure"="golf_course"](around:3500,${c.lat},${c.lng});relation["leisure"="golf_course"](around:3500,${c.lat},${c.lng}););out geom tags;`;
+  const d1 = await overpass(q1);
+  const cands = (d1.elements||[]).map(e=>({e, ll:geomOf(e)})).filter(x=>x.ll && x.ll.length>2);
+  if (!cands.length) throw new Error("nocourse");
+
+  const want = norm(c.name).replace(/golfclub|golfcourse|countryclub|club|golf/g,"");
+  let pick = null;
+  cands.forEach(x=>{
+    const nm = norm((x.e.tags||{}).name);
+    x.score = (want && nm && (nm.includes(want)||want.includes(nm))) ? 0 : 1;
+    x.dist = hav([c.lat,c.lng], centroidOf(x.ll));
+  });
+  cands.sort((a,b)=> a.score-b.score || a.dist-b.dist);
+  pick = cands[0];
+
+  const bb = bboxOf(pick.ll);
+  const q2 = `[out:json][timeout:30];(way["golf"](${bb[0]},${bb[1]},${bb[2]},${bb[3]});way["natural"="water"](${bb[0]},${bb[1]},${bb[2]},${bb[3]});way["landuse"="reservoir"](${bb[0]},${bb[1]},${bb[2]},${bb[3]}););out geom tags;`;
+  const d2 = await overpass(q2);
+
+  const out = {
+    boundary: pick.ll,
+    name: (pick.e.tags||{}).name || c.name,
+    centre: centroidOf(pick.ll),
+    bbox: bb,
+    elements: d2.elements||[]
+  };
+  OSM_CACHE[c.id] = out;
+  return out;
+}
+
+function parseHoles(elements){
+  const holes = [];
+  elements.forEach(e=>{
+    const t = e.tags||{};
+    if (t.golf !== "hole") return;
+    const ll = geomOf(e); if(!ll || ll.length<2) return;
+    holes.push({
+      ref: parseInt(t.ref,10) || null,
+      par: parseInt(t.par,10) || null,
+      si: parseInt(t.handicap,10) || null,
+      dist: t.dist ? parseInt(t.dist,10) : Math.round(lineLength(ll)),
+      ll
+    });
+  });
+  return holes.sort((a,b)=>(a.ref||99)-(b.ref||99));
+}
+
+function renderCourseMap(c, data, statusEl, listEl, actionsEl){
+  if (CMAP){ CMAP.remove(); CMAP = null; }
+  CMAP = L.map("cmap",{zoomControl:true, minZoom:12, maxZoom:19});
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19, opacity:.55,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(CMAP);
+
+  L.polygon(data.boundary,{color:"#7E9A78",weight:1.5,fill:false,dashArray:"5 4"}).addTo(CMAP);
+
+  const polys = [];
+  data.elements.forEach(e=>{
+    const t = e.tags||{};
+    if (t.golf === "hole") return;
+    const ll = geomOf(e); if(!ll || ll.length<2) return;
+    let st = t.golf && GOLF_STYLE[t.golf] ? GOLF_STYLE[t.golf] : null;
+    if (!st && (t.natural==="water" || t.natural==="pond" || t.landuse==="reservoir")) st = GOLF_STYLE.water_hazard;
+    if (!st) return;
+    polys.push({st, ll, label: t.golf||"water"});
+  });
+  polys.sort((a,b)=>a.st.rank-b.st.rank);
+  polys.forEach(p=>{
+    if (p.st.line){
+      L.polyline(p.ll,{color:p.st.line,weight:2,opacity:.75,dashArray:"5 5"}).addTo(CMAP);
+    } else {
+      L.polygon(p.ll,{color:p.st.stroke,weight:1,fillColor:p.st.fill,fillOpacity:.9}).addTo(CMAP);
+    }
+  });
+
+  const holes = parseHoles(data.elements);
+  holes.forEach(h=>{
+    L.polyline(h.ll,{color:"#8C2F1D",weight:2.5,opacity:.85,dashArray:"7 5"}).addTo(CMAP);
+    const start = h.ll[0];
+    L.marker(start,{
+      icon:L.divIcon({className:"holepin", html:'<span>'+(h.ref||"?")+'</span>', iconSize:[24,24], iconAnchor:[12,12]}),
+      title:"Hole "+(h.ref||"")
+    }).addTo(CMAP).bindPopup(
+      "Hole "+(h.ref||"?") + (h.par?" · par "+h.par:"") + (h.dist?" · "+h.dist+"m":"")
+    );
+  });
+
+  CMAP.fitBounds([[data.bbox[0],data.bbox[1]],[data.bbox[2],data.bbox[3]]],{padding:[10,10]});
+  setTimeout(()=>CMAP.invalidateSize(),120);
+
+  // status
+  statusEl.innerHTML="";
+  const detail = polys.length;
+  if (!detail && !holes.length){
+    statusEl.appendChild(el("p","sec-note","The course boundary is mapped but nothing inside it is, so there's no hole detail to show. Zoom the satellite view in your maps app instead."));
+  } else {
+    const bits = [];
+    if (holes.length) bits.push(holes.length+" holes routed");
+    if (detail) bits.push(detail+" features");
+    statusEl.appendChild(el("p","sec-note", bits.join(" · ")+". Tap a numbered pin for par and length."));
+  }
+  const lg = el("div","legend-grid");
+  LEGEND.forEach(([lab,col])=>{
+    const s = el("span");
+    const sw = el("i","sw"); sw.style.background=col;
+    s.appendChild(sw); s.appendChild(document.createTextNode(lab));
+    lg.appendChild(s);
+  });
+  const s2 = el("span");
+  const sw2 = el("i","sw"); sw2.style.cssText="background:#8C2F1D;border-radius:1px;height:3px";
+  s2.appendChild(sw2); s2.appendChild(document.createTextNode("Hole line, tee to green"));
+  lg.appendChild(s2);
+  statusEl.appendChild(lg);
+
+  // hole table
+  listEl.innerHTML="";
+  if (holes.length){
+    listEl.appendChild(el("label","lbl","Holes"));
+    const t = el("table","holes-tbl");
+    const th = el("thead"); const hr = el("tr");
+    ["Hole","Par","Index","Metres"].forEach(x=>hr.appendChild(el("th",null,x)));
+    th.appendChild(hr); t.appendChild(th);
+    const tb = el("tbody");
+    holes.forEach(h=>{
+      const tr = el("tr");
+      tr.appendChild(el("td",null,"Hole "+(h.ref||"–")));
+      tr.appendChild(el("td","num", h.par?String(h.par):"–"));
+      tr.appendChild(el("td","num", h.si?String(h.si):"–"));
+      tr.appendChild(el("td","num", h.dist?String(h.dist):"–"));
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); listEl.appendChild(t);
+  }
+
+  // actions
+  actionsEl.innerHTML="";
+  const withPar = holes.filter(h=>h.par && h.ref);
+  const need = holesFor(c);
+  if (withPar.length >= Math.min(need, 9)){
+    const b = el("button","btn quiet full","Use these pars for "+c.name);
+    b.style.marginTop="10px";
+    b.onclick = async ()=>{
+      const arr = defaultPars(need);
+      withPar.forEach(h=>{ if (h.ref>=1 && h.ref<=need) arr[h.ref-1]=h.par; });
+      S.parsByCourse[c.id] = arr;
+      await persist();
+      toast("Pars updated — total "+arr.reduce((a,x)=>a+x,0));
+    };
+    actionsEl.appendChild(b);
+  }
+  const moved = hav([c.lat,c.lng], data.centre);
+  if (moved > 250){
+    const b = el("button","btn ghost full","Move the pin here ("+Math.round(moved)+"m off)");
+    b.style.marginTop="8px";
+    b.onclick = async ()=>{
+      S.coordFix[c.id] = data.centre;
+      await persist(); rebuildCourses(); drawMap();
+      toast("Pin corrected"); b.remove();
+    };
+    actionsEl.appendChild(b);
+  }
+}
+
+function courseMapSheet(courseId){
+  const c = courseById(courseId);
+  openSheet(body=>{
+    body.appendChild(el("h3",null,"Course map"));
+    body.appendChild(el("p","sub", c.name+" · "+c.suburb));
+
+    const mapDiv = el("div"); mapDiv.id="cmap";
+    body.appendChild(mapDiv);
+
+    const status = el("div");
+    const loading = el("div","loading");
+    loading.appendChild(el("div","spin"));
+    loading.appendChild(el("span",null,"Looking up the course layout…"));
+    status.appendChild(loading);
+    body.appendChild(status);
+
+    const list = el("div");
+    const actions = el("div");
+    body.appendChild(actions);
+    body.appendChild(list);
+
+    const back = el("button","btn ghost full","Back to course");
+    back.style.marginTop="14px";
+    back.onclick = ()=>courseSheet(courseId);
+    body.appendChild(back);
+
+    if (typeof L === "undefined"){
+      status.innerHTML="";
+      status.appendChild(el("p","sec-note","The map library couldn't load. Open the file in your browser with a connection and try again."));
+      return;
+    }
+    setTimeout(async ()=>{
+      try{
+        const data = await loadCourseFeatures(c);
+        if (!document.getElementById("cmap")) return;
+        renderCourseMap(c, data, status, list, actions);
+      }catch(err){
+        if (!document.getElementById("cmap")) return;
+        status.innerHTML="";
+        const msg = (err && err.message==="nocourse")
+          ? "No golf course is mapped near this pin in OpenStreetMap. The pin may be off, or the course isn't mapped yet."
+          : "Couldn't reach the map data service. It needs a connection, and it rate-limits during busy periods — worth another go in a minute.";
+        status.appendChild(el("p","sec-note", msg));
+        const a = el("a","btn ghost full","Open the course in maps");
+        a.style.textDecoration="none";
+        a.href = "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(c.name+" "+c.suburb+" NSW");
+        a.target="_blank"; a.rel="noopener";
+        status.appendChild(a);
+      }
+    }, 60);
+  });
+}
+
+/* =========================================================
+   PIN ACCURACY — snap stored pins to mapped course centroids
+   ========================================================= */
+const STOPWORDS = /\b(golf|club|course|country|links|the|resort|and|cc|gc|public|district|municipal)\b/g;
+function normName(s){
+  return (s||"").toLowerCase()
+    .replace(/&/g," and ")
+    .replace(/['\u2019]/g,"")
+    .replace(/[^a-z0-9 ]/g," ")
+    .replace(STOPWORDS," ")
+    .replace(/\bmount\b/g,"mt")
+    .replace(/\bsaint\b/g,"st")
+    .replace(/\s+/g," ").trim();
+}
+function tokenScore(a,b){
+  const A = new Set(normName(a).split(" ").filter(Boolean));
+  const B = new Set(normName(b).split(" ").filter(Boolean));
+  if (!A.size || !B.size) return 0;
+  let hit=0; A.forEach(t=>{ if(B.has(t)) hit++; });
+  return hit / Math.min(A.size, B.size);
+}
+async function snapAllPins(){
+  const btn = $("#snapBtn"), out = $("#snapResult");
+  btn.disabled = true;
+  out.innerHTML="";
+  const load = el("div","loading");
+  load.appendChild(el("div","spin"));
+  load.appendChild(el("span",null,"Fetching mapped courses across NSW…"));
+  out.appendChild(load);
+
+  const q = `[out:json][timeout:90];(way["leisure"="golf_course"](-37.6,140.9,-28.1,153.7);relation["leisure"="golf_course"](-37.6,140.9,-28.1,153.7););out center tags;`;
+  let data;
+  try{
+    data = await overpass(q);
+  }catch(e){
+    out.innerHTML="";
+    out.appendChild(el("p","sec-note","Couldn't reach the map data service. It needs a connection and rate-limits when busy — try again in a minute."));
+    btn.disabled=false; return;
+  }
+
+  const cands = (data.elements||[]).map(e=>{
+    const ctr = e.center || (e.lat!=null ? {lat:e.lat, lon:e.lon} : null);
+    if (!ctr) return null;
+    return {name:(e.tags||{}).name||"", lat:ctr.lat, lng:ctr.lon};
+  }).filter(Boolean);
+
+  if (!cands.length){
+    out.innerHTML="";
+    out.appendChild(el("p","sec-note","The service answered but returned nothing. Worth trying again shortly."));
+    btn.disabled=false; return;
+  }
+
+  let moved=0, confirmed=0, unmatched=[];
+  let totalShift=0, biggest={m:0,name:""};
+
+  BUILTIN.forEach(c=>{
+    if (c.lat==null) return;
+    const near = cands
+      .map(x=>({x, d:hav([c.lat,c.lng],[x.lat,x.lng])}))
+      .filter(o=>o.d < 25000);
+    if (!near.length){ unmatched.push(c.name); return; }
+
+    near.forEach(o=>{ o.s = tokenScore(c.name, o.x.name); });
+    near.sort((a,b)=> b.s-a.s || a.d-b.d);
+    const best = near[0];
+
+    // accept on a solid name match, or on being the only course close to the pin
+    const veryClose = near.filter(o=>o.d < 1500);
+    const ok = (best.s >= 0.6 && best.d < 25000) ||
+               (veryClose.length === 1 && veryClose[0] === best);
+    if (!ok){ unmatched.push(c.name); return; }
+
+    const shift = best.d;
+    if (shift < 60){ confirmed++; return; }
+    S.coordFix[c.id] = [best.x.lat, best.x.lng];
+    moved++; totalShift += shift;
+    if (shift > biggest.m){ biggest = {m:shift, name:c.name}; }
+  });
+
+  await persist();
+  rebuildCourses(); drawMap(); renderCourses();
+
+  out.innerHTML="";
+  const lines = [];
+  if (moved) lines.push(moved+" pins moved onto the mapped course, average "+Math.round(totalShift/moved)+"m");
+  if (confirmed) lines.push(confirmed+" were already accurate");
+  if (unmatched.length) lines.push(unmatched.length+" couldn't be matched confidently and were left alone");
+  const p = el("p","sec-note"); p.style.marginTop="8px";
+  p.textContent = lines.join(". ")+".";
+  out.appendChild(p);
+
+  if (biggest.m > 1000){
+    const b = el("p","sec-note");
+    b.textContent = "Biggest correction: "+biggest.name+", "+(biggest.m/1000).toFixed(1)+"km.";
+    out.appendChild(b);
+  }
+  if (unmatched.length){
+    const det = document.createElement("details");
+    det.style.cssText="margin-top:6px;font-size:13px;color:var(--muted)";
+    const sum = document.createElement("summary");
+    sum.textContent = "Show the "+unmatched.length+" left alone";
+    sum.style.cursor="pointer";
+    det.appendChild(sum);
+    det.appendChild(el("div",null, unmatched.join(", ")));
+    out.appendChild(det);
+  }
+  const reset = el("button","btn ghost full","Undo — put pins back");
+  reset.style.marginTop="10px";
+  reset.onclick = async ()=>{
+    S.coordFix = {};
+    await persist(); rebuildCourses(); drawMap(); renderCourses();
+    out.innerHTML=""; toast("Pins reset to defaults");
+  };
+  out.appendChild(reset);
+  btn.disabled = false;
+  toast(moved ? moved+" pins corrected" : "Pins already accurate");
+}
+$("#snapBtn").onclick = snapAllPins;
+function updateSnapLabel(){
+  const n = Object.keys(S.coordFix||{}).length;
+  $("#snapBtn").textContent = n
+    ? "Re-check pin accuracy ("+n+" corrected)"
+    : "Improve pin accuracy";
+}
+
+/* =========================================================
+   VIEWS
+   ========================================================= */
+function switchView(name){
+  document.querySelectorAll("nav.tabs button").forEach(b=>
+    b.setAttribute("aria-current", b.dataset.view===name ? "true":"false"));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active", v.id==="v-"+name));
+  if (name==="map"){
+    if (LMAP) setTimeout(()=>LMAP.invalidateSize(),60);
+    else setTimeout(setVB,0);
+  }
+  window.scrollTo(0,0);
+}
+function drawMap(){ if (LMAP) drawLeafletPins(); else drawFallbackMap(); }
+document.querySelectorAll("nav.tabs button").forEach(b=>{
+  b.onclick = ()=>switchView(b.dataset.view);
+});
+
+function renderAll(){
+  renderCourses(); renderRounds(); renderPlayers(); renderStats(); updateSnapLabel();
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+(async function init(){
+  const saved = await Store.load();
+  if (saved) S = Object.assign(S, saved);
+  S.players = S.players||[]; S.rounds = S.rounds||[];
+  S.customCourses = S.customCourses||[]; S.parsByCourse = S.parsByCourse||{}; S.holesByCourse = S.holesByCourse||{}; S.coordFix = S.coordFix||{};
+  S.rounds.forEach(ensureSide);
+  rebuildCourses();
+  buildListChips();
+
+  let ok = false;
+  try{ ok = initLeaflet(); }catch(e){ ok = false; }
+  if (!ok){
+    $("#leafletWrap").style.display="none";
+    $("#fallbackWrap").classList.add("on");
+    $("#mapNote").textContent = "Street tiles couldn't load, so this is the schematic outline. Download the file and open it in your browser for the full map.";
+    drawFallbackMap();
+  }
+  buildRegionChips();
+  renderAll();
+})();
+</script>
+</body>
+</html>
