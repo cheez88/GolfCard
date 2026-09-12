@@ -1454,7 +1454,7 @@ function newRoundSheet(preCourseId){
     body.appendChild(search);
     const sel = el("select","field"); sel.size=1; sel.style.marginTop="8px";
     body.appendChild(sel);
-    const addLink = el("button","btn ghost full","Course not listed? Add it");
+    const addLink = el("button","btn ghost full","Add new course");
     addLink.style.marginTop="8px";
     body.appendChild(addLink);
     function fillSel(q){
@@ -1469,7 +1469,7 @@ function newRoundSheet(preCourseId){
         const o=el("option",null,"No match — add it below"); o.disabled=true; sel.appendChild(o);
         addLink.textContent = "Add \u201C"+(search.value.trim()||"this course")+"\u201D";
       } else {
-        addLink.textContent = "Course not listed? Add it";
+        addLink.textContent = "Add new course";
       }
     }
     fillSel("");
@@ -2157,7 +2157,7 @@ function renderTrend(host, entries){
   const done = entries.filter(e=>e.complete)
     .sort((a,b)=> a.r.date.localeCompare(b.r.date) || a.r.id.localeCompare(b.r.id));
 
-  host.appendChild(el("label","lbl","Are you improving?"));
+  host.appendChild(el("label","lbl","Performance"));
 
   if (done.length < 3){
     const n = el("div","empty");
