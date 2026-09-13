@@ -211,7 +211,23 @@ ul.list li{
 }
 .sheet.show{display:block}
 body.sheet-open{overflow:hidden}
-.grab{width:38px;height:4px;background:var(--line);border-radius:2px;margin:6px auto 12px}
+.sheet-top{
+  position:sticky;top:0;z-index:6;background:var(--paper);
+  margin:0 -16px;padding:7px 16px 9px;
+  display:flex;align-items:center;justify-content:center;
+  border-bottom:1px solid transparent;
+}
+.sheet-top.stuck{border-bottom-color:var(--line-soft)}
+.grab{width:38px;height:4px;background:var(--line);border-radius:2px}
+.sheet-close{
+  position:absolute;right:12px;top:4px;
+  width:34px;height:34px;border-radius:50%;
+  background:var(--line-soft);color:var(--rough);
+  font-size:14px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+}
+.sheet-close:active{background:var(--sand)}
+#sheetBody{padding-top:5px}
 .sheet h3{font-family:var(--serif);font-size:19px;margin:0 0 2px;font-weight:600}
 .sheet .sub{font-size:13px;color:var(--muted);margin:0 0 14px}
 label.lbl{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
@@ -509,7 +525,13 @@ table.card tr.team td,table.card tr.team th{background:#EEF4EF;font-weight:700;c
 </main>
 
 <div class="scrim" id="scrim"></div>
-<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-top">
+    <div class="grab"></div>
+    <button class="sheet-close" id="sheetClose" aria-label="Close">&#10005;</button>
+  </div>
+  <div id="sheetBody"></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -809,6 +831,8 @@ function openSheet(build){
   $("#sheet").classList.add("show"); $("#scrim").classList.add("show");
   document.body.classList.add("sheet-open");
   $("#sheet").scrollTop = 0;
+  const top = document.querySelector(".sheet-top");
+  if (top) top.classList.remove("stuck");
 }
 function closeSheet(){
   if (CMAP){ try{ CMAP.remove(); }catch(e){} CMAP = null; }
@@ -817,6 +841,11 @@ function closeSheet(){
   document.body.classList.remove("sheet-open");
 }
 $("#scrim").addEventListener("click", closeSheet);
+$("#sheetClose").addEventListener("click", closeSheet);
+$("#sheet").addEventListener("scroll", ()=>{
+  const top = document.querySelector(".sheet-top");
+  if (top) top.classList.toggle("stuck", $("#sheet").scrollTop > 4);
+});
 
 /* =========================================================
    MAP
@@ -2055,7 +2084,12 @@ function roundSheet(id){
     nt.onchange = async ()=>{ r.notes=nt.value; await persist(); };
     body.appendChild(nt);
 
-    const del = el("button","btn danger full","Delete this round"); del.style.marginTop="14px";
+    const back = el("button","btn quiet full","Back to rounds");
+    back.style.marginTop="14px";
+    back.onclick = ()=>{ switchView("rounds"); closeSheet(); };
+    body.appendChild(back);
+
+    const del = el("button","btn danger full","Delete this round"); del.style.marginTop="8px";
     del.onclick = async ()=>{
       S.rounds = S.rounds.filter(x=>x.id!==id);
       await persist(); closeSheet(); renderAll(); drawMap(); toast("Round deleted");
